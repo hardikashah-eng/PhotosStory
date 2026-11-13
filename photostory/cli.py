@@ -1,0 +1,161 @@
+"""Command line: `photostory run`, `photostory onedrive-login`, `photostory list`."""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import random
+import sys
+from datetime import date
+from pathlib import Path
+
+from .config import Config, Secrets, load_config
+from .deliver import Channel, make_channels
+from .generator import fake_episode, generate_episode, shuffle_quiz
+from .models import Episode
+from .render import render_episode, write_outputs
+from .selector import History, filter_refs, select_photos
+from .sources import PhotoSource, make_source
+from .sources.base import Photo
+
+log = logging.getLogger("photostory")
+EXTRA_CANDIDATES = 5  # spare picks in case a download fails
+
+
+def fetch_photos(source: PhotoSource, cfg: Config, today: date, history: History, rng: random.Random) -> list[Photo]:
+    refs = filter_refs(source.list_photos(), cfg.source.exclude_patterns, cfg.source.min_side_px)
+    log.info("Found %d candidate photos", len(refs))
+    k = cfg.story.photo_count
+    picks = select_photos(refs, k + EXTRA_CANDIDATES, history, today, cfg.story.avoid_repeat_days, rng)
+    photos: list[Photo] = []
+    for ref in picks:
+        if len(photos) == k:
+            break
+        try:
+            photos.append(source.fetch(ref, cfg.llm.image_max_side))
+        except Exception as e:  # one bad file shouldn't ruin Thursday
+            log.warning("Skipping %s: %s", ref.name, e)
+    if len(photos) < 3:
+        raise RuntimeError(f"Only {len(photos)} usable photos found — need at least 3.")
+    return photos
+
+
+def run_episode(
+    cfg: Config,
+    *,
+    source: PhotoSource,
+    client,  # anthropic.Anthropic or None when fake
+    channels: list[Channel],
+    today: date,
+    rng: random.Random,
+    dry_run: bool = False,
+) -> tuple[Episode, Path]:
+    history = History(cfg.history_file)
+    photos = fetch_photos(source, cfg, today, history, rng)
+    log.info("Writing episode from %d photos", len(photos))
+    ep = fake_episode(photos, cfg) if client is None else generate_episode(photos, cfg, client, rng)
+    ep = shuffle_quiz(ep, rng)
+    rendered = render_episode(ep, photos, today, cfg.story.family_name, attached=cfg.email.attach_interactive_page)
+    out = write_outputs(rendered, photos, Path(cfg.output_dir) / today.isoformat())
+    log.info("Episode '%s' written to %s", ep.title, out)
+
+    if dry_run:
+        log.info("Dry run: not sending, not updating history.")
+        return ep, out
+    for ch in channels:
+        ch.send(ep, rendered, photos)
+        log.info("Sent via %s", ch.name)
+    history.record(today, [p.ref for p in photos], ep.title)
+    history.save()
+    return ep, out
+
+
+def _persist_rotated_token(source: PhotoSource) -> None:
+    token = getattr(source, "rotated_refresh_token", None)
+    path = os.getenv("PHOTOSTORY_TOKEN_OUT")
+    if token and path:
+        Path(path).write_text(token)
+        os.chmod(path, 0o600)
+
+
+def cmd_run(args) -> int:
+    cfg = load_config(args.config)
+    if args.source_path:
+        cfg.source.type, cfg.source.path = "local", args.source_path
+    secrets = Secrets.from_env()
+    source = make_source(cfg, secrets)
+    _persist_rotated_token(source)  # persist early: the old token may already be spent
+
+    client = None
+    if not args.fake_llm:
+        if not secrets.anthropic_api_key:
+            print("ANTHROPIC_API_KEY is not set (use --fake-llm to test without it).", file=sys.stderr)
+            return 2
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=secrets.anthropic_api_key, max_retries=4)
+
+    channels = [] if args.dry_run else make_channels(cfg, secrets)
+    rng = random.Random(args.seed)
+    ep, out = run_episode(cfg, source=source, client=client, channels=channels, today=date.today(), rng=rng, dry_run=args.dry_run)
+    print(f"✅ {ep.title}\n   {out / 'photostory.html'}")
+    return 0
+
+
+def cmd_list(args) -> int:
+    cfg = load_config(args.config)
+    source = make_source(cfg, Secrets.from_env())
+    _persist_rotated_token(source)
+    refs = source.list_photos()
+    usable = filter_refs(refs, cfg.source.exclude_patterns, cfg.source.min_side_px)
+    print(f"{len(refs)} images found, {len(usable)} usable after filters.")
+    for r in usable[:10]:
+        print(f"  {r.taken_at.date() if r.taken_at else '????-??-??'}  {r.name}")
+    return 0
+
+
+def cmd_login(args) -> int:
+    from .sources.onedrive import device_code_login
+
+    client_id = args.client_id or os.getenv("MS_CLIENT_ID")
+    if not client_id:
+        print("Pass --client-id or set MS_CLIENT_ID.", file=sys.stderr)
+        return 2
+    tokens = device_code_login(client_id, tenant=args.tenant)
+    Path(args.out).write_text(tokens["refresh_token"])
+    os.chmod(args.out, 0o600)
+    print(f"\n✅ Signed in. Refresh token saved to {args.out}.")
+    print(f"   Store it as a GitHub secret:  gh secret set MS_REFRESH_TOKEN < {args.out}  — then delete the file.")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    p = argparse.ArgumentParser(prog="photostory", description="Weekly family PhotoStory agent")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    r = sub.add_parser("run", help="Pick photos, write the episode, send it")
+    r.add_argument("--config", default="config.yaml")
+    r.add_argument("--dry-run", action="store_true", help="Write files to out/ only; don't send or update history")
+    r.add_argument("--fake-llm", action="store_true", help="Use a canned episode instead of calling Claude")
+    r.add_argument("--source-path", help="Use a local folder instead of the configured source")
+    r.add_argument("--seed", type=int, default=None)
+    r.set_defaults(fn=cmd_run)
+
+    ls = sub.add_parser("list", help="Check the photo source and show what it finds")
+    ls.add_argument("--config", default="config.yaml")
+    ls.set_defaults(fn=cmd_list)
+
+    lg = sub.add_parser("onedrive-login", help="One-time Microsoft sign-in to get a refresh token")
+    lg.add_argument("--client-id")
+    lg.add_argument("--tenant", default="consumers")
+    lg.add_argument("--out", default="onedrive.token")
+    lg.set_defaults(fn=cmd_login)
+
+    args = p.parse_args(argv)
+    return args.fn(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

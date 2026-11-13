@@ -1,0 +1,98 @@
+name: Thursday PhotoStory
+
+on:
+  schedule:
+    # Thursdays 16:17 UTC = 8:17am Pacific (standard time) / 9:17am (daylight time).
+    # GitHub cron is UTC-only and can run a few minutes late.
+    - cron: "17 16 * * 4"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate only — don't send or update history"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # commit state/history.json (hashed photo ids only)
+
+concurrency:
+  group: photostory
+  cancel-in-progress: false
+
+jobs:
+  episode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: America/Los_Angeles
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+      MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      PHOTOSTORY_FAMILY_NAME: ${{ secrets.PHOTOSTORY_FAMILY_NAME }}
+      PHOTOSTORY_CHARACTERS: ${{ secrets.PHOTOSTORY_CHARACTERS }}
+      PHOTOSTORY_SOURCE_PATH: ${{ secrets.PHOTOSTORY_SOURCE_PATH }}
+      HAS_SECRETS_PAT: ${{ secrets.GH_SECRETS_PAT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install .
+
+      - name: Use private config if provided
+        env:
+          PHOTOSTORY_CONFIG_YAML: ${{ secrets.PHOTOSTORY_CONFIG_YAML }}
+        run: |
+          if [ -n "$PHOTOSTORY_CONFIG_YAML" ]; then
+            printf '%s' "$PHOTOSTORY_CONFIG_YAML" > config.local.yaml
+            echo "PHOTOSTORY_CONFIG=config.local.yaml" >> "$GITHUB_ENV"
+          else
+            echo "PHOTOSTORY_CONFIG=config.yaml" >> "$GITHUB_ENV"
+          fi
+
+      - name: Make this week's episode
+        env:
+          PHOTOSTORY_TOKEN_OUT: ${{ runner.temp }}/ms_refresh_token
+        run: |
+          ARGS="--config $PHOTOSTORY_CONFIG"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          photostory run $ARGS
+
+      # Microsoft rotates refresh tokens; store the newest one so the next run works.
+      # Needs a fine-grained PAT (this repo only, "Secrets: read & write") in GH_SECRETS_PAT.
+      - name: Save rotated OneDrive token
+        if: always() && env.HAS_SECRETS_PAT == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          f="${{ runner.temp }}/ms_refresh_token"
+          if [ -s "$f" ]; then
+            gh secret set MS_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" < "$f"
+            echo "Refresh token rotated."
+          fi
+          rm -f "$f"
+
+      - name: Commit history
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "photostory-bot"
+          git config user.email "photostory-bot@users.noreply.github.com"
+          git add state/history.json
+          git diff --cached --quiet || (git commit -m "PhotoStory: episode $(date +%F)" && git push)
+
+      # Episodes contain family photos. Only keep a downloadable copy when the repo is private:
+      # artifacts on public repos can be downloaded by any signed-in GitHub user.
+      - name: Keep episode (private repos only)
+        if: ${{ github.event.repository.private }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: photostory-${{ github.run_id }}
+          path: out/
+          retention-days: 30

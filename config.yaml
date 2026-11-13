@@ -1,0 +1,35 @@
+# Thursday PhotoStory configuration.
+# Secrets (API keys, tokens, passwords) never go here — they come from environment
+# variables / GitHub Actions secrets. Personal details (recipients, family names)
+# can also come from secrets so this file stays safe in a public repo:
+#   EMAIL_TO, PHOTOSTORY_FAMILY_NAME, PHOTOSTORY_CHARACTERS, PHOTOSTORY_SOURCE_PATH
+
+source:
+  type: onedrive              # onedrive | local
+  path: special:cameraroll    # or "Pictures/Family", or special:photos
+  tenant: consumers           # personal Microsoft account
+  max_depth: 4
+  exclude_patterns: [screenshot, screen shot, screen_shot]
+  min_side_px: 500
+
+story:
+  photo_count: 10
+  family_name: Our Family     # override with PHOTOSTORY_FAMILY_NAME secret
+  characters: []              # override with PHOTOSTORY_CHARACTERS ("Dad, snack detective; Mia, loves dragons")
+  audience: the whole family, kids included
+  language: English
+  quiz_questions: 5
+  avoid_repeat_days: 180
+
+llm:
+  model: claude-sonnet-5-5
+  max_tokens: 8000
+  image_max_side: 1024
+
+email:
+  enabled: true
+  to: []                      # set the EMAIL_TO secret instead (comma separated)
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  subject_prefix: "📸 Thursday PhotoStory"
+  attach_interactive_page: true

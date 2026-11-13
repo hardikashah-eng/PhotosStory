@@ -1,0 +1,11 @@
+# Generated episodes contain family photos — never commit them.
+out/
+config.local.yaml
+.env
+*.token
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
