@@ -66,11 +66,26 @@ class EmailConfig(BaseModel):
     attach_interactive_page: bool = True
 
 
+class PublishConfig(BaseModel):
+    """Host the weekly page and send a link instead of the full content."""
+
+    enabled: bool = False
+    bucket: str | None = None  # or S3_BUCKET secret
+    endpoint_url: str | None = None  # or S3_ENDPOINT_URL secret, e.g. https://<account>.r2.cloudflarestorage.com
+    region: str = "auto"  # "auto" for R2; e.g. "us-west-2" for AWS
+    # Set (or PUBLISH_BASE_URL secret) for permanent unguessable links, e.g. https://pub-xxxx.r2.dev
+    # Leave empty for signed links that expire after link_expiry_days.
+    public_base_url: str | None = None
+    prefix: str = "episodes"
+    link_expiry_days: int = Field(default=7, ge=1, le=7)
+
+
 class Config(BaseModel):
     source: SourceConfig = SourceConfig()
     story: StoryConfig = StoryConfig()
     llm: LLMConfig = LLMConfig()
     email: EmailConfig = EmailConfig()
+    publish: PublishConfig = PublishConfig()
     history_file: str = "state/history.json"
     output_dir: str = "out"
 
@@ -81,15 +96,26 @@ class Secrets(BaseModel):
     ms_refresh_token: str | None = None
     smtp_username: str | None = None
     smtp_password: str | None = None
+    s3_access_key_id: str | None = None
+    s3_secret_access_key: str | None = None
+    s3_endpoint_url: str | None = None
+    s3_bucket: str | None = None
+    publish_base_url: str | None = None
 
     @classmethod
     def from_env(cls) -> "Secrets":
+        env = lambda k: os.getenv(k) or None  # noqa: E731 — treat empty CI secrets as unset
         return cls(
-            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-            ms_client_id=os.getenv("MS_CLIENT_ID"),
-            ms_refresh_token=os.getenv("MS_REFRESH_TOKEN"),
-            smtp_username=os.getenv("SMTP_USERNAME"),
-            smtp_password=os.getenv("SMTP_PASSWORD"),
+            anthropic_api_key=env("ANTHROPIC_API_KEY"),
+            ms_client_id=env("MS_CLIENT_ID"),
+            ms_refresh_token=env("MS_REFRESH_TOKEN"),
+            smtp_username=env("SMTP_USERNAME"),
+            smtp_password=env("SMTP_PASSWORD"),
+            s3_access_key_id=env("S3_ACCESS_KEY_ID"),
+            s3_secret_access_key=env("S3_SECRET_ACCESS_KEY"),
+            s3_endpoint_url=env("S3_ENDPOINT_URL"),
+            s3_bucket=env("S3_BUCKET"),
+            publish_base_url=env("PUBLISH_BASE_URL"),
         )
 
 

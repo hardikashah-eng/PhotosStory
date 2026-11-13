@@ -26,6 +26,14 @@ llm:
   max_tokens: 8000
   image_max_side: 1024
 
+# Host the page and email just a link (+ one-tap "Share on WhatsApp").
+# Bucket, endpoint and base URL come from secrets: S3_BUCKET, S3_ENDPOINT_URL, PUBLISH_BASE_URL.
+publish:
+  enabled: true
+  region: auto                # "auto" for Cloudflare R2
+  prefix: episodes
+  link_expiry_days: 7         # only used when PUBLISH_BASE_URL is NOT set (signed, expiring links)
+
 email:
   enabled: true
   to: []                      # set the EMAIL_TO secret instead (comma separated)

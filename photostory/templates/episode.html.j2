@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ ep.title }} · Thursday PhotoStory</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta property="og:type" content="article">
+<meta property="og:title" content="🎬 {{ ep.title }}">
+<meta property="og:description" content="{{ ep.tagline }} Story · quiz · sing-along.">
+{% if cover_url %}<meta property="og:image" content="{{ cover_url }}">
+<meta property="og:image:type" content="image/jpeg">{% endif %}
 <style>
   :root {
     --paper: #fbf6ec; --ink: #2b2420; --muted: #7a6e64; --accent: #d9572b;

@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from urllib.parse import quote
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup, escape
@@ -35,7 +36,14 @@ class Rendered:
     json: str
 
 
-def render_episode(ep: Episode, photos: list[Photo], episode_date: date, family_name: str, attached: bool = True) -> Rendered:
+def render_episode(
+    ep: Episode,
+    photos: list[Photo],
+    episode_date: date,
+    family_name: str,
+    attached: bool = True,
+    cover_url: str | None = None,
+) -> Rendered:
     captions = {c.photo: c for c in ep.captions}
     data_uris = {i: "data:image/jpeg;base64," + base64.b64encode(p.jpeg).decode() for i, p in enumerate(photos, 1)}
     ctx = dict(
@@ -44,10 +52,39 @@ def render_episode(ep: Episode, photos: list[Photo], episode_date: date, family_
         family_name=family_name,
         date_label=episode_date.strftime("%A, %B %-d, %Y"),
         attached=attached,
+        cover_url=cover_url,
     )
     page = _env.get_template("episode.html.j2").render(photo_src=lambda n: data_uris[n], **ctx)
     email = _env.get_template("email.html.j2").render(cid=cid_for, **ctx)
     return Rendered(page_html=page, email_html=email, markdown=to_markdown(ep, episode_date), json=ep.model_dump_json(indent=2))
+
+
+def cover_photo(ep: Episode, photos: list[Photo]) -> Photo:
+    """The photo that opens the story — used for the link preview and the email."""
+    return photos[ep.story[0].photo - 1] if ep.story else photos[0]
+
+
+@dataclass
+class LinkEmail:
+    html: str
+    text: str
+    share_text: str
+    whatsapp_url: str
+
+
+def render_link_email(ep: Episode, episode_date: date, page_url: str, expires: date | None = None) -> LinkEmail:
+    share_text = f"🎬 Thursday PhotoStory: {ep.title}\n{ep.tagline}\nStory, quiz & sing-along 👉 {page_url}"
+    whatsapp_url = "https://wa.me/?text=" + quote(share_text)
+    html = _env.get_template("link_email.html.j2").render(
+        ep=ep,
+        page_url=page_url,
+        share_text=share_text,
+        whatsapp_url=whatsapp_url,
+        date_label=episode_date.strftime("%A, %B %-d"),
+        expires=expires.strftime("%A, %B %-d") if expires else None,
+    )
+    text = f"{share_text}\n\nShare on WhatsApp: {whatsapp_url}\n"
+    return LinkEmail(html=html, text=text, share_text=share_text, whatsapp_url=whatsapp_url)
 
 
 def to_markdown(ep: Episode, episode_date: date) -> str:

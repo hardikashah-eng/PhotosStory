@@ -39,8 +39,9 @@ def test_local_source_skips_non_images(photo_dir):
 
 
 def test_dry_run_writes_outputs_without_sending(cfg):
-    ep, out = run_episode(cfg, source=LocalSource(cfg.source.path), client=None, channels=[], today=date(2026, 11, 12),
+    res = run_episode(cfg, source=LocalSource(cfg.source.path), client=None, channels=[], today=date(2026, 11, 12),
                           rng=random.Random(0), dry_run=True)
+    ep, out = res.episode, res.out_dir
     for f in ["photostory.html", "email.html", "episode.md", "episode.json"]:
         assert (out / f).exists()
     page = (out / "photostory.html").read_text()
@@ -53,8 +54,9 @@ def test_full_run_sends_email_and_records_history(cfg):
     FakeSMTP.sent.clear()
     secrets = Secrets(smtp_username="me@example.com", smtp_password="pw")
     ch = EmailChannel(cfg, secrets, smtp_factory=FakeSMTP)
-    ep, out = run_episode(cfg, source=LocalSource(cfg.source.path), client=None, channels=[ch],
+    res = run_episode(cfg, source=LocalSource(cfg.source.path), client=None, channels=[ch],
                           today=date(2026, 11, 12), rng=random.Random(0))
+    ep = res.episode
     assert len(FakeSMTP.sent) == 1
     msg = message_from_bytes(FakeSMTP.sent[0].as_bytes(), policy=policy.default)
     assert ep.title in msg["Subject"]
@@ -70,7 +72,7 @@ def test_full_run_sends_email_and_records_history(cfg):
     assert len(hist["episodes"]) == 1 and len(hist["episodes"][0]["photos"]) == 10
 
     # Next week: a fresh set (only 12 photos, so at least 2 new ones and no crash)
-    ep2, _ = run_episode(cfg, source=LocalSource(cfg.source.path), client=None, channels=[ch],
+    run_episode(cfg, source=LocalSource(cfg.source.path), client=None, channels=[ch],
                          today=date(2026, 11, 19), rng=random.Random(1))
     hist = json.loads(Path(cfg.history_file).read_text())
     assert set(hist["episodes"][0]["photos"]) != set(hist["episodes"][1]["photos"])

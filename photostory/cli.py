@@ -7,14 +7,16 @@ import logging
 import os
 import random
 import sys
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 
 from .config import Config, Secrets, load_config
-from .deliver import Channel, make_channels
+from .deliver import Channel, Delivery, make_channels
 from .generator import fake_episode, generate_episode, shuffle_quiz
 from .models import Episode
-from .render import render_episode, write_outputs
+from .publish import Publisher
+from .render import cover_photo, render_episode, render_link_email, write_outputs
 from .selector import History, filter_refs, select_photos
 from .sources import PhotoSource, make_source
 from .sources.base import Photo
@@ -41,6 +43,13 @@ def fetch_photos(source: PhotoSource, cfg: Config, today: date, history: History
     return photos
 
 
+@dataclass
+class RunResult:
+    episode: Episode
+    out_dir: Path
+    link: str | None = None
+
+
 def run_episode(
     cfg: Config,
     *,
@@ -50,25 +59,45 @@ def run_episode(
     today: date,
     rng: random.Random,
     dry_run: bool = False,
-) -> tuple[Episode, Path]:
+    publisher: Publisher | None = None,
+) -> RunResult:
     history = History(cfg.history_file)
     photos = fetch_photos(source, cfg, today, history, rng)
     log.info("Writing episode from %d photos", len(photos))
     ep = fake_episode(photos, cfg) if client is None else generate_episode(photos, cfg, client, rng)
     ep = shuffle_quiz(ep, rng)
-    rendered = render_episode(ep, photos, today, cfg.story.family_name, attached=cfg.email.attach_interactive_page)
+    cover = cover_photo(ep, photos)
+
+    plan = publisher.plan(today) if (publisher and not dry_run) else None
+    rendered = render_episode(
+        ep, photos, today, cfg.story.family_name,
+        attached=cfg.email.attach_interactive_page,
+        cover_url=plan.cover_url if plan else None,
+    )
     out = write_outputs(rendered, photos, Path(cfg.output_dir) / today.isoformat())
     log.info("Episode '%s' written to %s", ep.title, out)
 
     if dry_run:
-        log.info("Dry run: not sending, not updating history.")
-        return ep, out
+        log.info("Dry run: not publishing, not sending, not updating history.")
+        return RunResult(ep, out)
+
+    link = None
+    if plan:
+        try:
+            publisher.upload(plan, rendered.page_html, cover.jpeg)
+            expires = today + timedelta(days=cfg.publish.link_expiry_days) if publisher.mode == "presigned" else None
+            link = render_link_email(ep, today, plan.page_url, expires)
+            log.info("Published episode page (%s link).", publisher.mode)  # never log the URL itself
+        except Exception as e:  # still deliver Thursday's episode, just the long way
+            log.error("Publishing failed (%s); sending the full episode instead.", e)
+
+    delivery = Delivery(ep=ep, rendered=rendered, photos=photos, cover=cover, link=link)
     for ch in channels:
-        ch.send(ep, rendered, photos)
-        log.info("Sent via %s", ch.name)
+        ch.send(delivery)
+        log.info("Sent via %s (%s)", ch.name, "link" if link else "full episode")
     history.record(today, [p.ref for p in photos], ep.title)
     history.save()
-    return ep, out
+    return RunResult(ep, out, plan.page_url if link else None)
 
 
 def _persist_rotated_token(source: PhotoSource) -> None:
@@ -96,10 +125,14 @@ def cmd_run(args) -> int:
 
         client = anthropic.Anthropic(api_key=secrets.anthropic_api_key, max_retries=4)
 
-    channels = [] if args.dry_run else make_channels(cfg, secrets)
+    channels = [] if (args.dry_run or args.no_email) else make_channels(cfg, secrets)
+    publisher = Publisher(cfg, secrets) if (cfg.publish.enabled and not args.dry_run) else None
     rng = random.Random(args.seed)
-    ep, out = run_episode(cfg, source=source, client=client, channels=channels, today=date.today(), rng=rng, dry_run=args.dry_run)
-    print(f"✅ {ep.title}\n   {out / 'photostory.html'}")
+    res = run_episode(cfg, source=source, client=client, channels=channels, today=date.today(), rng=rng,
+                      dry_run=args.dry_run, publisher=publisher)
+    print(f"✅ {res.episode.title}\n   {res.out_dir / 'photostory.html'}")
+    if res.link and not os.getenv("GITHUB_ACTIONS"):  # CI logs may be public — link goes by email only
+        print(f"🔗 {res.link}")
     return 0
 
 
@@ -138,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("run", help="Pick photos, write the episode, send it")
     r.add_argument("--config", default="config.yaml")
     r.add_argument("--dry-run", action="store_true", help="Write files to out/ only; don't send or update history")
+    r.add_argument("--no-email", action="store_true", help="Publish the page and print the link, but don't email")
     r.add_argument("--fake-llm", action="store_true", help="Use a canned episode instead of calling Claude")
     r.add_argument("--source-path", help="Use a local folder instead of the configured source")
     r.add_argument("--seed", type=int, default=None)

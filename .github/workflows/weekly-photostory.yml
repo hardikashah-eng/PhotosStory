@@ -31,6 +31,11 @@ jobs:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      PUBLISH_BASE_URL: ${{ secrets.PUBLISH_BASE_URL }}
       PHOTOSTORY_FAMILY_NAME: ${{ secrets.PHOTOSTORY_FAMILY_NAME }}
       PHOTOSTORY_CHARACTERS: ${{ secrets.PHOTOSTORY_CHARACTERS }}
       PHOTOSTORY_SOURCE_PATH: ${{ secrets.PHOTOSTORY_SOURCE_PATH }}

@@ -7,7 +7,8 @@ Every Thursday morning an agent picks **10 random family photos** (from OneDrive
 - 🧠 **A family quiz** (interactive in the browser, answer key in the email)
 - 🎤 **An original silly sing-along song** with a shout-along chorus
 
-It arrives as an email with the photos inline, plus an attached `photostory.html` you can open on any phone or TV to play the quiz.
+Each week the episode is published as its own **web page with an unlisted link**. You get one short email with **📖 Open** and **💬 Share on WhatsApp** buttons. On your phone, tap Share and pick your family groups. The link shows a preview with the cover photo and title.
+(If publishing is off or fails, the full episode is emailed instead, with photos inline and an interactive `photostory.html` attached.)
 
 ```
 OneDrive / folder ──► pick 10 (varied months, no repeats for 6 months)
@@ -36,6 +37,7 @@ This repo can be public, but **your photos and family details never go into it**
 ```bash
 pip install -e ".[dev,heic]"
 photostory run --source-path ~/Pictures --fake-llm --dry-run   # canned text, real photos
+photostory run --no-email                                        # publish and just print the link
 open out/*/photostory.html
 pytest -q
 ```
@@ -64,7 +66,25 @@ Pick the folder in `config.yaml` → `source.path`:
 
 **Keeping the token alive:** Microsoft rotates refresh tokens. Create a fine-grained PAT (this repo only, *Secrets: Read and write*) and save it as `GH_SECRETS_PAT` — the workflow then stores the newest token after each run. Without it, re-run `onedrive-login` roughly every 90 days.
 
-### 3. Email (Gmail example)
+### 3. Weekly page link (Cloudflare R2, free tier)
+
+1. Cloudflare dashboard → **R2** → **Create bucket** → name it `photostory`.
+2. Bucket → **Settings → Public access → R2.dev subdomain → Allow**. Copy the `https://pub-….r2.dev` URL.
+   *(Skip this step if you want links that **expire after 7 days** and a bucket with nothing public at all.)*
+3. R2 → **Manage API tokens → Create API token**: *Object Read & Write*, limited to this bucket. Copy the Access Key ID, the Secret, and the S3 endpoint (`https://<account-id>.r2.cloudflarestorage.com`).
+4. Optional: bucket → **Settings → Object lifecycle rules** → delete objects after e.g. 60 days.
+
+```bash
+gh secret set S3_BUCKET --body photostory
+gh secret set S3_ENDPOINT_URL --body https://<account-id>.r2.cloudflarestorage.com
+gh secret set S3_ACCESS_KEY_ID --body <key id>
+gh secret set S3_SECRET_ACCESS_KEY --body <secret>
+gh secret set PUBLISH_BASE_URL --body https://pub-xxxx.r2.dev   # omit for 7-day expiring links
+```
+
+How private is it? Each episode is stored under a random 128-bit folder name, so it can't be guessed or listed, and the page tells search engines not to index it. As with a Google Photos "anyone with the link" share, anyone you forward the link to can open it. The link is only ever sent by email. It is never written to the Actions log, because logs of public repos are public. Any S3-compatible store also works (AWS S3, Backblaze B2); set `publish.region` to match.
+
+### 4. Email (Gmail example)
 
 Turn on 2-Step Verification, create an **App password** (myaccount.google.com/apppasswords), then:
 
@@ -74,7 +94,7 @@ gh secret set SMTP_PASSWORD --body "<16-char app password>"
 gh secret set EMAIL_TO --body "you@gmail.com,partner@example.com"
 ```
 
-### 4. Claude + personalisation
+### 5. Claude + personalisation
 
 ```bash
 gh secret set ANTHROPIC_API_KEY --body sk-ant-...
@@ -84,7 +104,7 @@ gh secret set PHOTOSTORY_CHARACTERS --body "Dad, the snack detective; Mom, capta
 
 Or put an entire private config in the `PHOTOSTORY_CONFIG_YAML` secret.
 
-### 5. Run it
+### 6. Run it
 
 **Actions → Thursday PhotoStory → Run workflow** (tick *dry run* first). After that it runs on its own every **Thursday at 8:17am Pacific** (9:17am during daylight time — GitHub cron is UTC). The weekly history commit also keeps GitHub from pausing the schedule for inactivity.
 
@@ -95,7 +115,9 @@ Or put an entire private config in the `PHOTOSTORY_CONFIG_YAML` secret.
 | `ANTHROPIC_API_KEY` | ✅ | Claude API |
 | `MS_CLIENT_ID`, `MS_REFRESH_TOKEN` | OneDrive | Read-only photo access |
 | `GH_SECRETS_PAT` | recommended | Saves rotated OneDrive token |
-| `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO` | email | Delivery |
+| `S3_BUCKET`, `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | link mode | Hosts the weekly page |
+| `PUBLISH_BASE_URL` | optional | Permanent unlisted links (otherwise 7-day signed links) |
+| `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO` | email | Delivery (set `EMAIL_TO` to just you if you'll do the sharing) |
 | `PHOTOSTORY_FAMILY_NAME`, `PHOTOSTORY_CHARACTERS`, `PHOTOSTORY_SOURCE_PATH` | optional | Keep personal details out of the repo |
 | `PHOTOSTORY_CONFIG_YAML` | optional | Whole config as a secret |
 
@@ -116,7 +138,8 @@ Or put an entire private config in the `PHOTOSTORY_CONFIG_YAML` secret.
 | `selector.py` | Spreads picks across months, avoids recent repeats, tops up with least-recently-used |
 | `generator.py` | One vision call with a forced `publish_episode` tool (schema = Pydantic model); validates coverage/quiz, sends problems back for a fix-up turn; shuffles quiz answers |
 | `render.py` + `templates/` | Storybook-style interactive page and an email-safe version with CID images |
-| `deliver.py` | Pluggable channels (email today) |
+| `publish.py` | Uploads page + cover to S3/R2 under a random folder; public-unlisted or signed links |
+| `deliver.py` | Pluggable channels: link email with WhatsApp share button, or full email |
 
 ## Roadmap ideas
 
