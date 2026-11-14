@@ -37,6 +37,7 @@ def cfg(tmp_path, photo_dir) -> Config:
     c.history_file = str(tmp_path / "state" / "history.json")
     c.output_dir = str(tmp_path / "out")
     c.email.to = ["family@example.com"]
+    c.whatsapp.enabled = False  # rendering needs Chromium + ffmpeg; covered in test_share.py
     return c
 
 

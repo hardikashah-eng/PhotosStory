@@ -15,6 +15,7 @@ from typing import Protocol
 from .config import Config, Secrets
 from .models import Episode
 from .render import LinkEmail, Rendered, cid_for
+from .share import SharePack
 from .sources.base import Photo
 
 
@@ -25,6 +26,7 @@ class Delivery:
     photos: list[Photo]
     cover: Photo
     link: LinkEmail | None = None  # set when the page was published
+    share: SharePack | None = None  # WhatsApp cards / polls / video
 
 
 class Channel(Protocol):
@@ -42,6 +44,22 @@ def _base_message(cfg: Config, sender: str, subject: str) -> EmailMessage:
     return msg
 
 
+def attach_share_pack(msg: EmailMessage, d: Delivery, cfg: Config) -> None:
+    """Attach the WhatsApp pack (video, cards, polls) if it fits under the size budget."""
+    if not (d.share and cfg.whatsapp.attach_to_email):
+        return
+    files = d.share.files()
+    budget = cfg.whatsapp.max_attachment_mb * 1024 * 1024
+    if sum(f.stat().st_size for f in files) > budget and d.share.video:
+        files = [f for f in files if f != d.share.video]  # drop the video first
+    if sum(f.stat().st_size for f in files) > budget:
+        return
+    types = {".mp4": ("video", "mp4"), ".jpg": ("image", "jpeg"), ".txt": ("text", "plain")}
+    for f in files:
+        maintype, subtype = types[f.suffix]
+        msg.add_attachment(f.read_bytes(), maintype=maintype, subtype=subtype, filename=f.name)
+
+
 def build_full_email(d: Delivery, cfg: Config, sender: str) -> EmailMessage:
     ep, rendered = d.ep, d.rendered
     msg = _base_message(cfg, sender, f"{cfg.email.subject_prefix}: {ep.title}")
@@ -55,6 +73,7 @@ def build_full_email(d: Delivery, cfg: Config, sender: str) -> EmailMessage:
         html_part.add_related(p.jpeg, maintype="image", subtype="jpeg", cid=f"<{cid_for(i)}>", filename=f"photo{i}.jpg")
     if cfg.email.attach_interactive_page:
         msg.add_attachment(rendered.page_html.encode(), maintype="text", subtype="html", filename="photostory.html")
+    attach_share_pack(msg, d, cfg)
     return msg
 
 
@@ -64,6 +83,7 @@ def build_link_email(d: Delivery, cfg: Config, sender: str) -> EmailMessage:
     msg.set_content(d.link.text)
     msg.add_alternative(d.link.html, subtype="html")
     msg.get_payload()[1].add_related(d.cover.jpeg, maintype="image", subtype="jpeg", cid="<cover@photostory>", filename="cover.jpg")
+    attach_share_pack(msg, d, cfg)
     return msg
 
 

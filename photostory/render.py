@@ -72,7 +72,9 @@ class LinkEmail:
     whatsapp_url: str
 
 
-def render_link_email(ep: Episode, episode_date: date, page_url: str, expires: date | None = None) -> LinkEmail:
+def render_link_email(
+    ep: Episode, episode_date: date, page_url: str, expires: date | None = None, pack_note: str | None = None
+) -> LinkEmail:
     share_text = f"🎬 Thursday PhotoStory: {ep.title}\n{ep.tagline}\nStory, quiz & sing-along 👉 {page_url}"
     whatsapp_url = "https://wa.me/?text=" + quote(share_text)
     html = _env.get_template("link_email.html.j2").render(
@@ -82,6 +84,7 @@ def render_link_email(ep: Episode, episode_date: date, page_url: str, expires: d
         whatsapp_url=whatsapp_url,
         date_label=episode_date.strftime("%A, %B %-d"),
         expires=expires.strftime("%A, %B %-d") if expires else None,
+        pack_note=pack_note,
     )
     text = f"{share_text}\n\nShare on WhatsApp: {whatsapp_url}\n"
     return LinkEmail(html=html, text=text, share_text=share_text, whatsapp_url=whatsapp_url)
