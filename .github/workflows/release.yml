@@ -1,0 +1,58 @@
+name: Release
+
+# Push a version tag to publish downloads:  git tag v0.2.0 && git push origin v0.2.0
+# Stable links (always the newest release):
+#   https://github.com/hardikashah-eng/PhotosStory/releases/latest/download/thursday-photostory-skill.zip
+#   https://github.com/hardikashah-eng/PhotosStory/releases/latest/download/photostory-webapp.zip
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to publish, e.g. v0.2.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        run: |
+          pip install -e ".[dev]" build
+          pytest -q
+      - name: Build downloads
+        run: python scripts/package_release.py --version "$TAG"
+      - name: Check skill zip shape
+        run: |
+          unzip -l dist/thursday-photostory-skill.zip
+          unzip -Z1 dist/thursday-photostory-skill.zip | grep -qx "thursday-photostory/SKILL.md"
+          ! unzip -Z1 dist/thursday-photostory-skill.zip | grep -v "^thursday-photostory/"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<NOTES
+          ## Download
+
+          | | |
+          |---|---|
+          | 📱 **Phone app** | Open https://hardikashah-eng.github.io/PhotosStory/ → Share → **Add to Home Screen** |
+          | 🧩 **Claude skill** | Download **thursday-photostory-skill.zip** → Claude → **Customize → Skills → + → Create skill → Upload a skill**. Then say *"make this week's PhotoStory"* |
+          | 🌐 **Self-host the app** | **photostory-webapp.zip**: unzip and serve the folder from any static host |
+          | 🐍 **Python engine** | \`pip install "photostory[share,voice] @ https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/photostory-${TAG#v}-py3-none-any.whl"\` |
+          NOTES
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.zip dist/*.whl dist/*.tar.gz --clobber
+          else
+            gh release create "$TAG" dist/*.zip dist/*.whl dist/*.tar.gz --title "PhotoStory $TAG" --notes-file notes.md --generate-notes
+          fi
