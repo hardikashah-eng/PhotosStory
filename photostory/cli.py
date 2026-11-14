@@ -17,6 +17,7 @@ from .generator import fake_episode, generate_episode, shuffle_quiz
 from .models import Episode
 from .publish import Publisher
 from .render import cover_photo, render_episode, render_link_email, write_outputs
+from .share import SharePack  # noqa: F401  (type only; rendering deps load lazily)
 from .selector import History, filter_refs, select_photos
 from .sources import PhotoSource, make_source
 from .sources.base import Photo
@@ -48,6 +49,7 @@ class RunResult:
     episode: Episode
     out_dir: Path
     link: str | None = None
+    share: "SharePack | None" = None
 
 
 def run_episode(
@@ -77,27 +79,43 @@ def run_episode(
     out = write_outputs(rendered, photos, Path(cfg.output_dir) / today.isoformat())
     log.info("Episode '%s' written to %s", ep.title, out)
 
+    share = None
+    if cfg.whatsapp.enabled:
+        try:
+            from .share import build_share_pack
+
+            share = build_share_pack(ep, photos, out / "whatsapp", video=cfg.whatsapp.video,
+                                     chapter_seconds=cfg.whatsapp.chapter_seconds)
+            log.info("WhatsApp pack: %d cards, video=%s", len(share.cards), bool(share.video))
+        except Exception as e:  # optional extra: never block Thursday
+            log.warning("Skipping WhatsApp pack (%s). Install with: pip install '.[share]' && "
+                        "python -m playwright install chromium", e)
+
     if dry_run:
         log.info("Dry run: not publishing, not sending, not updating history.")
-        return RunResult(ep, out)
+        return RunResult(ep, out, share=share)
 
     link = None
     if plan:
         try:
             publisher.upload(plan, rendered.page_html, cover.jpeg)
             expires = today + timedelta(days=cfg.publish.link_expiry_days) if publisher.mode == "presigned" else None
-            link = render_link_email(ep, today, plan.page_url, expires)
+            note = None
+            if share and cfg.whatsapp.attach_to_email:
+                note = (("a short video, " if share.video else "") + f"{len(share.cards)} story cards to send as one album, "
+                        "and polls.txt with the quiz as WhatsApp polls.")
+            link = render_link_email(ep, today, plan.page_url, expires, pack_note=note)
             log.info("Published episode page (%s link).", publisher.mode)  # never log the URL itself
         except Exception as e:  # still deliver Thursday's episode, just the long way
             log.error("Publishing failed (%s); sending the full episode instead.", e)
 
-    delivery = Delivery(ep=ep, rendered=rendered, photos=photos, cover=cover, link=link)
+    delivery = Delivery(ep=ep, rendered=rendered, photos=photos, cover=cover, link=link, share=share)
     for ch in channels:
         ch.send(delivery)
         log.info("Sent via %s (%s)", ch.name, "link" if link else "full episode")
     history.record(today, [p.ref for p in photos], ep.title)
     history.save()
-    return RunResult(ep, out, plan.page_url if link else None)
+    return RunResult(ep, out, plan.page_url if link else None, share)
 
 
 def _persist_rotated_token(source: PhotoSource) -> None:

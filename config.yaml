@@ -34,6 +34,13 @@ publish:
   prefix: episodes
   link_expiry_days: 7         # only used when PUBLISH_BASE_URL is NOT set (signed, expiring links)
 
+# WhatsApp pack: story cards (send as one album), quiz polls to paste, ~60 s video.
+whatsapp:
+  enabled: true
+  video: true
+  chapter_seconds: 5
+  attach_to_email: true
+
 email:
   enabled: true
   to: []                      # set the EMAIL_TO secret instead (comma separated)

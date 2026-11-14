@@ -17,6 +17,24 @@ OneDrive / folder ──► pick 10 (varied months, no repeats for 6 months)
                   ──► remember what was used (hashed ids only)
 ```
 
+## 📱 WhatsApp pack
+
+An `.html` file arrives in WhatsApp as a "document", so every episode also comes as formats that play right in the chat. They're attached to the weekly email and saved under `out/<date>/whatsapp/`:
+
+| File | How to use it in WhatsApp |
+|---|---|
+| `photostory.mp4` | ~60 s slideshow (slow zoom, captions, dip-to-black cuts), ~5 MB. Send as a video. |
+| `cards/*.jpg` | 1080×1350 story cards: title, one per chapter, ending + quiz teaser, song. Select them all and send as one album. |
+| `polls.txt` | The quiz as WhatsApp polls (📎 → Poll), plus an answer-reveal message for the next day. |
+
+Rendering uses headless Chromium (for emoji and typography) and ffmpeg:
+
+```bash
+pip install ".[share]" && python -m playwright install chromium   # plus ffmpeg on PATH
+```
+
+The GitHub workflow installs both. If either is missing, the episode still goes out without the pack. To use an existing Chrome instead, set `PHOTOSTORY_CHROME=/path/to/chrome`. Configure it under `whatsapp:` in `config.yaml`.
+
 ## Privacy by design
 
 This repo can be public, but **your photos and family details never go into it**:

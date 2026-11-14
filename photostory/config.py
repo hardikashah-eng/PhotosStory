@@ -80,12 +80,23 @@ class PublishConfig(BaseModel):
     link_expiry_days: int = Field(default=7, ge=1, le=7)
 
 
+class WhatsAppConfig(BaseModel):
+    """Story cards, quiz polls and a short video that play natively in WhatsApp."""
+
+    enabled: bool = True
+    video: bool = True
+    chapter_seconds: float = Field(default=5.0, ge=2, le=12)
+    attach_to_email: bool = True
+    max_attachment_mb: float = 20.0  # stay under common mail limits (Gmail: 25 MB)
+
+
 class Config(BaseModel):
     source: SourceConfig = SourceConfig()
     story: StoryConfig = StoryConfig()
     llm: LLMConfig = LLMConfig()
     email: EmailConfig = EmailConfig()
     publish: PublishConfig = PublishConfig()
+    whatsapp: WhatsAppConfig = WhatsAppConfig()
     history_file: str = "state/history.json"
     output_dir: str = "out"
 
