@@ -41,6 +41,12 @@ whatsapp:
   chapter_seconds: 5
   attach_to_email: true
 
+# Talking photos: each photo "says" a line, spoken in the video and on the page (🔊).
+# Generic synthetic voices (Piper TTS, offline); one stable voice per speaker.
+voices:
+  enabled: true
+  length_scale: 1.0           # >1 slower, <1 faster speech
+
 email:
   enabled: true
   to: []                      # set the EMAIL_TO secret instead (comma separated)

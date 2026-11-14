@@ -59,6 +59,14 @@
   .song .verse, .song .chorus { white-space: pre-line; margin: 0 0 18px; font-size: 18px; }
   .song .chorus { font-weight: 700; color: #ffcf8a; padding-left: 14px; border-left: 3px solid #ffcf8a; }
   .song .label { font-family: var(--sans); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .6; display: block; margin-bottom: 2px; font-weight: 400; color: var(--paper); }
+  .say { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; background: var(--card); border: 1.5px solid #e6dccd; border-radius: 16px; padding: 12px 14px; }
+  .say button { flex: none; font-size: 22px; line-height: 1; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+  .say button.on { background: var(--ink); }
+  .say .who { font: 700 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .say q { font-style: italic; quotes: "“" "”"; }
+  .quote { text-align: center; margin: 56px auto 0; max-width: 640px; }
+  .quote blockquote { margin: 0; font-size: 24px; font-style: italic; }
+  .quote cite { display: block; margin-top: 8px; font: 700 13px var(--sans); letter-spacing: .1em; color: var(--accent); font-style: normal; }
   .teaser { text-align: center; margin-top: 56px; font-style: italic; color: var(--muted); font-size: 18px; }
   footer { text-align: center; font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 30px; }
   @media (max-width: 680px) {
@@ -94,6 +102,9 @@
           <div class="num">Chapter {{ loop.index }}</div>
           <h3>{{ beat.heading }}</h3>
           <p>{{ beat.text }}</p>
+          {% set v = voices.get(beat.photo) %}{% if v %}
+          <div class="say"><button type="button" aria-label="Hear {{ v.speaker }}" data-line="{{ v.line }}" data-voice="{{ loop.index0 }}">🔊</button>
+            <div><div class="who">{{ v.speaker }} says</div><q>{{ v.line }}</q></div></div>{% endif %}
         </div>
       </article>
     {% endfor %}
@@ -127,10 +138,30 @@
     </div>
   </section>
 
+  {% if quote %}<div class="quote"><blockquote>“{{ quote.text }}”</blockquote><cite>— {{ quote.author }}{% if quote.source %}, {{ quote.source }}{% endif %}</cite>
+    <p style="font-size:18px;margin-top:18px">❤️ {{ ep.collage_message }}</p></div>{% endif %}
   <p class="teaser">🔮 {{ ep.next_week_teaser }}</p>
   <footer>Made with love (and a little AI) from {{ family_name }}'s photo library.</footer>
 </main>
 <script>
+(() => {
+  // Talking photos: read each line aloud with the device's own voices (no files, works offline).
+  const synth = window.speechSynthesis;
+  const buttons = [...document.querySelectorAll(".say button")];
+  if (!synth) buttons.forEach(b => b.style.display = "none");
+  buttons.forEach(b => b.addEventListener("click", () => {
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(b.dataset.line);
+    const n = +b.dataset.voice;
+    const en = synth.getVoices().filter(v => v.lang && v.lang.startsWith("en"));
+    if (en.length) u.voice = en[n % en.length];
+    u.pitch = [1.0, 1.35, 0.8, 1.2, 0.95, 1.5][n % 6];
+    u.rate = 1.0;
+    buttons.forEach(x => x.classList.remove("on")); b.classList.add("on");
+    u.onend = () => b.classList.remove("on");
+    synth.speak(u);
+  }));
+})();
 (() => {
   const qs = [...document.querySelectorAll(".quiz-q")];
   let done = 0, right = 0;

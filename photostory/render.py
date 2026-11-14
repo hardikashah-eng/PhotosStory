@@ -45,6 +45,10 @@ def render_episode(
     cover_url: str | None = None,
 ) -> Rendered:
     captions = {c.photo: c for c in ep.captions}
+    voices = {v.photo: v for v in ep.voices}
+    from .quotes import load_quotes
+
+    quote = load_quotes().get(ep.collage_quote_id)
     data_uris = {i: "data:image/jpeg;base64," + base64.b64encode(p.jpeg).decode() for i, p in enumerate(photos, 1)}
     ctx = dict(
         ep=ep,
@@ -53,6 +57,8 @@ def render_episode(
         date_label=episode_date.strftime("%A, %B %-d, %Y"),
         attached=attached,
         cover_url=cover_url,
+        voices=voices,
+        quote=quote,
     )
     page = _env.get_template("episode.html.j2").render(photo_src=lambda n: data_uris[n], **ctx)
     email = _env.get_template("email.html.j2").render(cid=cid_for, **ctx)
@@ -92,11 +98,14 @@ def render_link_email(
 
 def to_markdown(ep: Episode, episode_date: date) -> str:
     caps = {c.photo: c for c in ep.captions}
+    voices = {v.photo: v for v in ep.voices}
     lines = [f"# {ep.title}", f"*{ep.tagline}* — {episode_date.isoformat()}", "", f"**Premise:** {ep.theme}", "",
              "## Story", ep.story_intro, ""]
     for i, b in enumerate(ep.story, 1):
         c = caps[b.photo]
         lines += [f"### {i}. {b.heading}", f"> 📷 Photo {b.photo}: {c.caption} {c.emoji}", "", b.text, ""]
+        if v := voices.get(b.photo):
+            lines += [f"💬 *{v.speaker}:* “{v.line}”", ""]
     lines += [ep.story_ending, "", "## Quiz"]
     for i, q in enumerate(ep.quiz, 1):
         lines.append(f"{i}. {q.question}")

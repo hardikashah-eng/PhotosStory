@@ -1,0 +1,122 @@
+# Curated quotes for the family collage. Claude picks one id per episode; it never
+# writes its own, because AI-generated "famous quotes" are often misattributed.
+# Rules for adding one: the wording and attribution must be checkable in the original
+# source, and authors should be public domain or the quote very short.
+# Avoid common misattributions (e.g. "Not all who wander…" variants credited to
+# Augustine, "Life is a journey…" credited to Emerson).
+quotes:
+  - id: 1
+    text: "The years teach much which the days never know."
+    author: Ralph Waldo Emerson
+    source: "Experience (1844)"
+    tags: [time, growing-up, memories]
+  - id: 2
+    text: "Where we love is home — home that our feet may leave, but not our hearts."
+    author: Oliver Wendell Holmes Sr.
+    source: "Homesick in Heaven"
+    tags: [home, family, travel]
+  - id: 3
+    text: "Memory is the diary that we all carry about with us."
+    author: Oscar Wilde
+    source: "The Importance of Being Earnest (1895)"
+    tags: [memories]
+  - id: 4
+    text: "Grow old along with me! The best is yet to be."
+    author: Robert Browning
+    source: "Rabbi Ben Ezra (1864)"
+    tags: [time, love, growing-up]
+  - id: 5
+    text: "The mountains are calling and I must go."
+    author: John Muir
+    source: "Letter to Sarah Muir Galloway (1873)"
+    tags: [mountains, adventure, travel]
+  - id: 6
+    text: "In every walk with nature one receives far more than he seeks."
+    author: John Muir
+    source: "Steep Trails (1918)"
+    tags: [nature, outdoors]
+  - id: 7
+    text: "Heaven is under our feet as well as over our heads."
+    author: Henry David Thoreau
+    source: "Walden (1854)"
+    tags: [nature, beach, wonder]
+  - id: 8
+    text: "One touch of nature makes the whole world kin."
+    author: William Shakespeare
+    source: "Troilus and Cressida"
+    tags: [nature, togetherness]
+  - id: 9
+    text: "Life is either a daring adventure or nothing."
+    author: Helen Keller
+    source: "Let Us Have Faith (1940)"
+    tags: [adventure]
+  - id: 10
+    text: "The family is one of nature's masterpieces."
+    author: George Santayana
+    source: "The Life of Reason: Reason in Society (1905)"
+    tags: [family]
+  - id: 11
+    text: "Be it ever so humble, there's no place like home."
+    author: John Howard Payne
+    source: "Home! Sweet Home! (1823)"
+    tags: [home, family]
+  - id: 12
+    text: "Home is the place where, when you have to go there, they have to take you in."
+    author: Robert Frost
+    source: "The Death of the Hired Man (1914)"
+    tags: [home, family, humor]
+  - id: 13
+    text: "A journey of a thousand miles begins with a single step."
+    author: Laozi
+    source: "Tao Te Ching, ch. 64"
+    tags: [journey, beginnings, growing-up]
+  - id: 14
+    text: "Variety's the very spice of life."
+    author: William Cowper
+    source: "The Task (1785)"
+    tags: [adventure, humor]
+  - id: 15
+    text: "Laugh, and the world laughs with you."
+    author: Ella Wheeler Wilcox
+    source: "Solitude (1883)"
+    tags: [laughter, humor]
+  - id: 16
+    text: "One cannot think well, love well, sleep well, if one has not dined well."
+    author: Virginia Woolf
+    source: "A Room of One's Own (1929)"
+    tags: [food, humor, home]
+  - id: 18
+    text: "Nature always wears the colors of the spirit."
+    author: Ralph Waldo Emerson
+    source: "Nature (1836)"
+    tags: [nature, outdoors]
+  - id: 19
+    text: "The happiest moments of my life have been the few which I have passed at home in the bosom of my family."
+    author: Thomas Jefferson
+    source: "Letter to Francis Willis, 18 Apr. 1790"
+    tags: [family, home]
+  - id: 20
+    text: "Little drops of water, little grains of sand, make the mighty ocean and the pleasant land."
+    author: Julia A. Fletcher Carney
+    source: "Little Things (1845)"
+    tags: [small-moments, sea, kids]
+  - id: 21
+    text: "To see a World in a Grain of Sand, and a Heaven in a Wild Flower."
+    author: William Blake
+    source: "Auguries of Innocence"
+    tags: [wonder, beach, kids]
+  - id: 22
+    text: "Each day is a little life."
+    author: Arthur Schopenhauer
+    source: "Counsels and Maxims"
+    tags: [everyday, time]
+  - id: 23
+    text: "How far that little candle throws his beams!"
+    author: William Shakespeare
+    source: "The Merchant of Venice"
+    tags: [kids, light, kindness]
+  - id: 24
+    text: "The ornament of a house is the friends who frequent it."
+    author: Ralph Waldo Emerson
+    source: "Domestic Life (1870)"
+    tags: [home, friends, togetherness]

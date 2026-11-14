@@ -38,6 +38,7 @@ def cfg(tmp_path, photo_dir) -> Config:
     c.output_dir = str(tmp_path / "out")
     c.email.to = ["family@example.com"]
     c.whatsapp.enabled = False  # rendering needs Chromium + ffmpeg; covered in test_share.py
+    c.voices.enabled = False  # TTS model download; covered in test_voice.py
     return c
 
 

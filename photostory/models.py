@@ -17,6 +17,22 @@ class StoryBeat(BaseModel):
     text: str = Field(description="2-4 sentences of the imaginary story that bring this photo to life.")
 
 
+class PhotoVoice(BaseModel):
+    photo: int = Field(description="1-based photo number.")
+    speaker: str = Field(
+        description=(
+            "Who or what is talking, described by role or look, never a real name: "
+            "'the smiling pumpkin', 'the explorer in the bubble helmet', 'the snowy mountain', 'the dog'."
+        )
+    )
+    line: str = Field(
+        description=(
+            "What the photo 'says' out loud, first person, from that speaker's point of view: "
+            "playful, kind, family-friendly, max 16 words. It will be read aloud by a synthetic voice."
+        )
+    )
+
+
 class QuizQuestion(BaseModel):
     question: str = Field(description="A fun question about the photos or the story. Answerable by looking/reading.")
     options: list[str] = Field(min_length=3, max_length=4, description="3-4 answer choices; one correct.")
@@ -49,6 +65,10 @@ class Episode(BaseModel):
     story_ending: str = Field(description="2-3 sentence happy, funny ending.")
     quiz: list[QuizQuestion]
     song: Song
+    voices: list[PhotoVoice] = Field(description="Talking photos: exactly one voice line per photo.")
+    collage_quote_id: int = Field(
+        description="id of the quote from the provided quote list that best fits the collage of all these photos."
+    )
     collage_message: str = Field(
         description=(
             "One warm, sincere sentence (not a joke, max ~30 words) shown on a collage of ALL this week's photos: "
@@ -57,6 +77,9 @@ class Episode(BaseModel):
         )
     )
     next_week_teaser: str = Field(description="One playful line teasing next Thursday's episode.")
+
+
+MAX_VOICE_WORDS = 20
 
 
 def check_episode(ep: Episode, n_photos: int, n_questions: int) -> list[str]:
@@ -71,6 +94,18 @@ def check_episode(ep: Episode, n_photos: int, n_questions: int) -> list[str]:
     beat_nums = [b.photo for b in ep.story]
     if sorted(beat_nums) != sorted(expected):
         problems.append(f"story must have one beat per photo 1..{n_photos}; got {sorted(beat_nums)}")
+
+    voice_nums = [v.photo for v in ep.voices]
+    if sorted(voice_nums) != sorted(expected):
+        problems.append(f"voices must have one line per photo 1..{n_photos}; got {sorted(voice_nums)}")
+    for v in ep.voices:
+        if len(v.line.split()) > MAX_VOICE_WORDS:
+            problems.append(f"voice line for photo {v.photo} is too long (max {MAX_VOICE_WORDS} words)")
+
+    from .quotes import load_quotes  # local import: keeps models importable without package data
+
+    if ep.collage_quote_id not in load_quotes():
+        problems.append(f"collage_quote_id {ep.collage_quote_id} is not in the quote list")
 
     if len(ep.quiz) != n_questions:
         problems.append(f"quiz must have exactly {n_questions} questions; got {len(ep.quiz)}")

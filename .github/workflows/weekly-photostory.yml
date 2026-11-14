@@ -51,8 +51,14 @@ jobs:
       - name: Install
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          pip install ".[share]"
+          pip install ".[share,voice]"
           python -m playwright install --with-deps chromium
+
+      - name: Cache talking-photo voice model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/photostory/voices
+          key: piper-voice-${{ hashFiles('photostory/config.py') }}
 
       - name: Use private config if provided
         env:
