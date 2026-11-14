@@ -1,5 +1,16 @@
 # 📸 Thursday PhotoStory
 
+## ⬇️ Get it
+
+| | How | |
+|---|---|---|
+| 📱 **Phone app** | Open **[hardikashah-eng.github.io/PhotosStory](https://hardikashah-eng.github.io/PhotosStory/)** → Share → **Add to Home Screen** | No account needed. Optional API key, or use the free built-in writer |
+| 🧩 **Claude skill** | Download **[thursday-photostory-skill.zip](https://github.com/hardikashah-eng/PhotosStory/releases/latest/download/thursday-photostory-skill.zip)** → Claude → **Customize → Skills → + → Create skill → Upload a skill** → say *"make this week's PhotoStory"* | Needs a Claude plan with skills and code execution |
+| 🌐 **Self-host the app** | **[photostory-webapp.zip](https://github.com/hardikashah-eng/PhotosStory/releases/latest/download/photostory-webapp.zip)**: unzip and put the folder on any static host | |
+| 🐍 **Weekly automation** | Fork this repo and follow *Setup* below (GitHub Actions every Thursday) | |
+
+Releases are built automatically when a version tag is pushed (`git tag v0.2.0 && git push origin v0.2.0`). See `.github/workflows/release.yml`. To build the same files locally, run `python scripts/package_release.py`; they land in `dist/`.
+
 Every Thursday morning an agent picks **10 random family photos** (from OneDrive or a folder), and Claude turns them into a little show:
 
 - 😂 **Funny, family-friendly captions** for each photo
