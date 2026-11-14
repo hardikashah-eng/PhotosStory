@@ -21,6 +21,7 @@
         <div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#d9572b;font-weight:bold;">Chapter {{ loop.index }}</div>
         <div style="font-size:19px;font-weight:bold;padding:2px 0 4px;">{{ beat.heading }}</div>
         <div style="font-size:16px;line-height:1.6;">{{ beat.text }}</div>
+        {% set v = voices.get(beat.photo) %}{% if v %}<div style="margin-top:10px;font-size:15px;font-style:italic;color:#7a6e64;">💬 {{ v.speaker }}: “{{ v.line }}”</div>{% endif %}
       </td></tr>
     </table>
   </td></tr>
@@ -45,6 +46,8 @@
     {% endfor %}
   </td></tr>
 
+  {% if quote %}<tr><td align="center" style="font-size:18px;font-style:italic;padding:26px 10px 4px;">“{{ quote.text }}”<br><span style="font-family:Arial,sans-serif;font-size:12px;font-style:normal;letter-spacing:1px;color:#d9572b;">— {{ quote.author }}</span></td></tr>
+  <tr><td align="center" style="font-size:15px;color:#2b2420;padding:6px 10px 0;">❤️ {{ ep.collage_message }}</td></tr>{% endif %}
   <tr><td align="center" style="font-size:16px;font-style:italic;color:#7a6e64;padding:26px 0 8px;">🔮 {{ ep.next_week_teaser }}</td></tr>
 
   <tr><td style="padding:20px 0 0;border-top:2px dashed #e0d4c3;font-family:Arial,sans-serif;font-size:13px;color:#7a6e64;">

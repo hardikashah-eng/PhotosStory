@@ -84,9 +84,15 @@ def run_episode(
         try:
             from .share import build_share_pack
 
+            synth = None
+            if cfg.voices.enabled and cfg.whatsapp.video:
+                from .voice import make_synth
+
+                v = cfg.voices
+                synth = make_synth(v.model_url, v.cache_dir, v.speaker_ids, v.length_scale)
             share = build_share_pack(ep, photos, out / "whatsapp", video=cfg.whatsapp.video,
-                                     chapter_seconds=cfg.whatsapp.chapter_seconds)
-            log.info("WhatsApp pack: %d cards, video=%s", len(share.cards), bool(share.video))
+                                     chapter_seconds=cfg.whatsapp.chapter_seconds, synth=synth)
+            log.info("WhatsApp pack: %d cards, video=%s, talking=%s", len(share.cards), bool(share.video), share.talking)
         except Exception as e:  # optional extra: never block Thursday
             log.warning("Skipping WhatsApp pack (%s). Install with: pip install '.[share]' && "
                         "python -m playwright install chromium", e)

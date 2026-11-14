@@ -90,6 +90,16 @@ class WhatsAppConfig(BaseModel):
     max_attachment_mb: float = 20.0  # stay under common mail limits (Gmail: 25 MB)
 
 
+class VoicesConfig(BaseModel):
+    """Talking photos: each photo 'says' a line, spoken in the video (Piper TTS) and on the page."""
+
+    enabled: bool = True
+    model_url: str = "https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-libritts-high.tar.gz"
+    cache_dir: str = "~/.cache/photostory/voices"
+    speaker_ids: list[int] = Field(default_factory=lambda: [0, 14, 30, 61, 102, 150, 211, 340, 466, 580, 712, 860])
+    length_scale: float = Field(default=1.0, ge=0.6, le=1.6)  # >1 = slower speech
+
+
 class Config(BaseModel):
     source: SourceConfig = SourceConfig()
     story: StoryConfig = StoryConfig()
@@ -97,6 +107,7 @@ class Config(BaseModel):
     email: EmailConfig = EmailConfig()
     publish: PublishConfig = PublishConfig()
     whatsapp: WhatsAppConfig = WhatsAppConfig()
+    voices: VoicesConfig = VoicesConfig()
     history_file: str = "state/history.json"
     output_dir: str = "out"
 

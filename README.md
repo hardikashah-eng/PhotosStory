@@ -6,7 +6,8 @@ Every Thursday morning an agent picks **10 random family photos** (from OneDrive
 - 📖 **An imaginary story** that weaves all 10 photos into one adventure
 - 🧠 **A family quiz** (interactive in the browser, answer key in the email)
 - 🎤 **An original silly sing-along song** with a shout-along chorus
-- ❤️ **A family collage**: all the week's photos as a dated scrapbook timeline with one heartfelt line
+- ❤️ **A family collage**: all the week's photos as a dated scrapbook timeline, with a famous quote and one heartfelt line
+- 🔊 **Talking photos**: each photo "says" a funny line from the point of view of someone or something in it, spoken in the video and readable aloud on the page
 
 Each week the episode is published as its own **web page with an unlisted link**. You get one short email with **📖 Open** and **💬 Share on WhatsApp** buttons. On your phone, tap Share and pick your family groups. The link shows a preview with the cover photo and title.
 (If publishing is off or fails, the full episode is emailed instead, with photos inline and an interactive `photostory.html` attached.)
@@ -36,6 +37,17 @@ pip install ".[share]" && python -m playwright install chromium   # plus ffmpeg 
 ```
 
 The GitHub workflow installs both. If either is missing, the episode still goes out without the pack. To use an existing Chrome instead, set `PHOTOSTORY_CHROME=/path/to/chrome`. Configure it under `whatsapp:` in `config.yaml`.
+
+## 🔊 Talking photos & 📜 collage quotes
+
+**Talking photos.** Claude writes one short first-person line per photo, spoken by someone or something in it: a person described by what they're doing, a pet, an object, or the place itself. For example, *the smiling pumpkin: "Fasten your seatbelts, this pumpkin is cleared for take-off!"*
+
+- **Video:** each line is spoken with [Piper](https://github.com/rhasspy/piper), an offline neural TTS, and shown as a speech bubble, so it also works muted. Each speaker always gets the same voice from a 904-voice model. The chapter stretches to fit the line.
+- **Interactive page:** a 🔊 button per photo reads the line with the phone's own voices (Web Speech API).
+- **Voices are generic and synthetic.** The project never clones or imitates real family members' voices, and never uses real names.
+- **Install:** `pip install ".[voice]"`. The voice model (~135 MB) downloads once to `~/.cache/photostory/voices` (cached in Actions). If anything is missing, the video simply has no speech.
+
+**Collage quotes.** The collage shows one famous quote. Claude picks it from a curated list in `photostory/data/quotes.yaml` (Emerson, Thoreau, Muir, Shakespeare, Santayana, Jefferson…) and never writes its own, because AI-generated "famous quotes" are often misattributed. Every entry has a checkable source. Add your own family favourites there.
 
 ## Privacy by design
 

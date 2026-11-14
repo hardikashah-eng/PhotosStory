@@ -15,7 +15,8 @@ from typing import Any
 from pydantic import ValidationError
 
 from .config import Config
-from .models import Caption, Episode, QuizQuestion, Song, StoryBeat, check_episode
+from .quotes import quotes_prompt
+from .models import Caption, Episode, PhotoVoice, QuizQuestion, Song, StoryBeat, check_episode
 from .sources.base import Photo
 
 log = logging.getLogger(__name__)
@@ -33,6 +34,8 @@ House rules — these matter more than being funny:
 - If a photo is unclear, boring (a receipt, a blurry wall), or sensitive, give it a gentle, imaginative role in the story (a "mysterious map", a "portal") instead of describing it literally.
 - Pets, food, weather and objects are excellent comedy material.
 - Song lyrics must be 100% original. For the tune, describe an original rhythm or use a traditional public-domain melody only.
+- Talking photos: each photo gets one short first-person line spoken by someone or something in it (a person described by what they're doing, a pet, an object, or the place itself). Keep it warm and silly; never put words in a real person's mouth that could embarrass them, and never use real names.
+- For the collage, pick the quote id from the provided list that best fits ALL the photos together; never invent or alter quotes.
 - Quiz questions should be answerable by looking at the photos or reading the story, with a mix of easy questions for kids and trickier ones for adults.
 
 Deliver everything by calling the publish_episode tool exactly once."""
@@ -86,7 +89,8 @@ def build_user_content(photos: list[Photo], cfg: Config, theme: str | None) -> l
                 f"Suggested premise: {theme or 'your choice — surprise us'}\n\n"
                 f"Create the episode for these {len(photos)} photos: one caption per photo, one story beat per "
                 f"photo, exactly {s.quiz_questions} quiz questions, an original silly song with a chorus "
-                f"everyone can shout along to, and one heartfelt collage message about the family."
+                f"everyone can shout along to, one talking-photo voice line per photo, a collage quote id, and one "
+                f"heartfelt collage message about the family.\n\nQuote list for the collage:\n{quotes_prompt()}"
             ),
         }
     )
@@ -183,6 +187,9 @@ def fake_episode(photos: list[Photo], cfg: Config) -> Episode:
             ],
             chorus="Oh the crumb trail blues\nGot cookie on my shoes",
         ),
+        voices=[PhotoVoice(photo=i, speaker=f"suspect number {i}", line="I did not eat the cookie. I only licked the crumbs.")
+                for i in range(1, n + 1)],
+        collage_quote_id=15,
         collage_message="Every crumb, every clue and every giggle along the way: the best mysteries are the ones we solve together.",
         next_week_teaser="Next Thursday: the great sock disappearance.",
     )

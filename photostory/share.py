@@ -6,7 +6,8 @@ also turned into formats that play natively in a chat:
 - cards/NN_*.jpg   1080x1350 (4:5) images: title, one per chapter, ending + quiz teaser, song,
                    and a family collage (timeline of every photo with year stickers)
 - polls.txt        the quiz as WhatsApp polls (question + options) plus an answer-reveal message
-- photostory.mp4   ~60 s slideshow: slow zoom on each photo, caption fade-in, dip-to-black cuts
+- photostory.mp4   ~70 s slideshow: slow zoom on each photo, caption fade-in, dip-to-black cuts;
+                   with talking photos, each photo "speaks" its line (Piper TTS) with a speech bubble
 
 Cards and video frames are drawn with headless Chromium (Playwright) so emoji and
 typography render properly; the video is encoded with ffmpeg (H.264, ~5 MB).
@@ -29,6 +30,8 @@ from pathlib import Path
 from PIL import Image
 
 from .models import Episode
+from .quotes import load_quotes
+from .voice import Clip, Synth, build_track, write_wav
 from .render import cover_photo
 from .sources.base import Photo
 
@@ -56,6 +59,7 @@ class SharePack:
     polls: Path | None = None
     video: Path | None = None
     collage: Path | None = None
+    talking: bool = False  # video has spoken voice lines
 
     def files(self) -> list[Path]:
         return [p for p in [self.video, *self.cards, self.polls] if p]
@@ -186,13 +190,23 @@ def collage_title(photos: list[Photo]) -> tuple[str, str]:
     return "Our Memories", "This week's photos"
 
 
+def _quote_html(q) -> str:
+    if not q:
+        return ""
+    return (f"<div style='margin-top:26px;text-align:center;max-width:900px'>"
+            f"<div style='font-size:34px;line-height:1.35;font-style:italic;color:#2b2420'>“{_e(q.text)}”</div>"
+            f"<div style='font:700 22px/1.4 {SANS};letter-spacing:.08em;color:#d9572b;margin-top:10px'>"
+            f"— {_e(q.author.upper())}</div></div>")
+
+
 def collage_page(ep: Episode, photos: list[Photo]) -> str:
     """Scrapbook timeline of every photo in the episode, oldest first, with year stickers."""
     ordered = sorted(photos, key=lambda p: (p.ref.taken_at is None, p.ref.taken_at or 0))
     title, span = collage_title(photos)
+    quote = load_quotes().get(ep.collage_quote_id)
     rows = _rows(len(ordered))
     usable_w, gap = 960, 22
-    row_h = min(300, (800 - gap * (len(rows) - 1)) / len(rows))
+    row_h = min(300, ((690 if quote else 800) - gap * (len(rows) - 1)) / len(rows))
     tilts = [-3.2, 2.4, -1.4, 3.0, -2.6, 1.6, -0.8, 2.8, -3.4, 1.2, -2.0, 2.2]
     html_rows, k = [], 0
     for cols in rows:
@@ -215,6 +229,7 @@ def collage_page(ep: Episode, photos: list[Photo]) -> str:
   <div class='kicker'>Thursday PhotoStory · Our memories</div>
   <h1 style='font-size:80px;line-height:1.05;text-align:center;margin-top:20px'>{_e(title)}</h1>
   <div style='font:700 28px/1 {SANS};letter-spacing:.2em;color:#7a6e64;margin-top:14px'>{_e(span)}</div>
+  {_quote_html(quote)}
   <div style='flex:1;display:flex;flex-direction:column;justify-content:center;gap:{gap + 8}px;width:100%'>{''.join(html_rows)}</div>
   <p style='font-size:38px;line-height:1.4;font-style:italic;text-align:center;max-width:920px;margin-bottom:40px'>❤️ {_e(ep.collage_message)}</p>
   <div class='foot'>🎬 {_e(ep.title)}</div>""")
@@ -229,8 +244,17 @@ def _photo_layer(p: Photo) -> str:
 </body></html>"""
 
 
-def _text_layer(kicker: str, heading: str, caption: str) -> str:
-    return f"""<html><body style='margin:0;width:{W}px;height:{H}px;background:transparent'>
+def _bubble(speaker: str, line: str) -> str:
+    return f"""<div style='position:absolute;left:60px;right:60px;top:56px;display:flex;justify-content:center'>
+  <div style='position:relative;background:#fff;color:#2b2420;border-radius:34px;padding:22px 34px 24px;box-shadow:0 12px 36px rgba(0,0,0,.35);max-width:900px'>
+    <div style='font:800 22px/1 {SANS};letter-spacing:.12em;color:#d9572b;text-transform:uppercase;margin-bottom:10px'>🔊 {_e(speaker)}</div>
+    <div style='font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:38px;line-height:1.3;font-style:italic'>“{_e(line)}”</div>
+    <div style='position:absolute;left:90px;bottom:-22px;width:0;height:0;border-left:22px solid transparent;border-right:22px solid transparent;border-top:24px solid #fff'></div>
+  </div></div>"""
+
+
+def _text_layer(kicker: str, heading: str, caption: str, bubble: str = "") -> str:
+    return f"""<html><body style='margin:0;width:{W}px;height:{H}px;background:transparent'>{bubble}
 <div style='position:absolute;left:0;right:0;bottom:0;height:520px;background:linear-gradient(transparent,rgba(20,14,10,.92) 45%)'></div>
 <div style='position:absolute;left:64px;right:64px;bottom:70px;color:#fff;font-family:"Iowan Old Style",Palatino,Georgia,serif'>
   <div style='font:800 26px/1 {SANS};letter-spacing:.18em;color:#ffb38a;text-transform:uppercase'>{_e(kicker)}</div>
@@ -277,8 +301,12 @@ def _launch(pw):
     return pw.chromium.launch(executable_path=os.getenv("PHOTOSTORY_CHROME") or None)
 
 
+TITLE_S, ENDING_S, SONG_S, COLLAGE_S = 4.0, 4.0, 7.0, 5.0
+SPEECH_START, SPEECH_TAIL = 0.7, 0.8
+
+
 def build_share_pack(ep: Episode, photos: list[Photo], out_dir: Path, video: bool = True,
-                     chapter_seconds: float = 5.0) -> SharePack:
+                     chapter_seconds: float = 5.0, synth: Synth | None = None) -> SharePack:
     from playwright.sync_api import sync_playwright
 
     out_dir = Path(out_dir)
@@ -309,28 +337,57 @@ def build_share_pack(ep: Episode, photos: list[Photo], out_dir: Path, video: boo
             pack.collage = by_kind.get("collage")
 
             if want_video:
+                voices = {v.photo: v for v in ep.voices}
+                clips: dict[int, Clip] = {}
+                if synth:
+                    for b in ep.story:
+                        if v := voices.get(b.photo):
+                            try:
+                                clips[b.photo] = synth(v.line, v.speaker)
+                            except Exception as e:  # one bad line shouldn't silence the rest
+                                log.warning("Voice for photo %d failed: %s", b.photo, e)
+                durations = {b.photo: max(chapter_seconds, round(clips[b.photo].seconds + SPEECH_START + SPEECH_TAIL, 2))
+                             if b.photo in clips else chapter_seconds for b in ep.story}
+
                 big = browser.new_page(viewport={"width": W, "height": H}, device_scale_factor=2)
                 scenes: list[Path] = []
-                _zoom_scene(pack.cards[0], 4, s := tmp / "s00.mp4"); scenes.append(s)
+                _zoom_scene(pack.cards[0], TITLE_S, s := tmp / "s00.mp4"); scenes.append(s)
                 for i, b in enumerate(ep.story, 1):
                     big.set_content(_photo_layer(photos[b.photo - 1])); big.wait_for_timeout(150)
                     photo_img = tmp / f"p{i:02d}.jpg"
                     big.screenshot(path=str(photo_img), type="jpeg", quality=92)
                     c = caps[b.photo]
-                    page.set_content(_text_layer(f"Chapter {i} of {len(ep.story)}", b.heading, f"{c.caption} {c.emoji}"))
+                    v = voices.get(b.photo)
+                    bubble = _bubble(v.speaker, v.line) if v else ""
+                    page.set_content(_text_layer(f"Chapter {i} of {len(ep.story)}", b.heading, f"{c.caption} {c.emoji}", bubble))
                     page.wait_for_timeout(80)
                     text_img = tmp / f"t{i:02d}.png"
                     page.screenshot(path=str(text_img), omit_background=True)
-                    _chapter_scene(photo_img, text_img, chapter_seconds, s := tmp / f"s{i:02d}.mp4"); scenes.append(s)
-                _zoom_scene(by_kind["ending"], 4, s := tmp / "s97.mp4"); scenes.append(s)   # ending + quiz teaser
-                _still_scene(by_kind["song"], 7, s := tmp / "s98.mp4"); scenes.append(s)     # song: hold to read
-                _zoom_scene(by_kind["collage"], 5, s := tmp / "s99.mp4", zoom=0.03); scenes.append(s)  # finale
+                    _chapter_scene(photo_img, text_img, durations[b.photo], s := tmp / f"s{i:02d}.mp4"); scenes.append(s)
+                _zoom_scene(by_kind["ending"], ENDING_S, s := tmp / "s97.mp4"); scenes.append(s)   # ending + quiz teaser
+                _still_scene(by_kind["song"], SONG_S, s := tmp / "s98.mp4"); scenes.append(s)     # song: hold to read
+                _zoom_scene(by_kind["collage"], COLLAGE_S, s := tmp / "s99.mp4", zoom=0.03); scenes.append(s)  # finale
                 (tmp / "list.txt").write_text("".join(f"file '{p}'\n" for p in scenes))
                 pack.video = out_dir / "photostory.mp4"
                 tmpv = out_dir / "tmp_photostory.mp4"
+                silent = tmp / "silent.mp4"
                 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i",
-                                str(tmp / "list.txt"), "-c", "copy", "-movflags", "+faststart", str(tmpv)], check=True)
+                                str(tmp / "list.txt"), "-c", "copy", str(silent)], check=True)
+                if clips:
+                    rate = next(iter(clips.values())).rate
+                    segments = [(TITLE_S, None, 0.0)]
+                    segments += [(durations[b.photo], clips.get(b.photo), SPEECH_START) for b in ep.story]
+                    segments += [(ENDING_S, None, 0.0), (SONG_S, None, 0.0), (COLLAGE_S, None, 0.0)]
+                    write_wav(wav := tmp / "voices.wav", build_track(segments, rate), rate)
+                    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(silent), "-i", str(wav),
+                                    "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "96k",
+                                    "-af", "loudnorm=I=-16:TP=-1.5", "-shortest", "-movflags", "+faststart", str(tmpv)],
+                                   check=True)
+                else:
+                    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(silent), "-c", "copy",
+                                    "-movflags", "+faststart", str(tmpv)], check=True)
                 tmpv.replace(pack.video)
+                pack.talking = bool(clips)
         finally:
             browser.close()
     return pack
