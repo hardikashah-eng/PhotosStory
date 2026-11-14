@@ -160,6 +160,72 @@ def cmd_run(args) -> int:
     return 0
 
 
+def cmd_render(args) -> int:
+    """Render a finished episode (written by Claude in a chat, or by hand) from photo files."""
+    import json as _json
+
+    from .models import Episode, check_episode
+    from .sources.local import _taken_at
+
+    cfg = load_config(args.config)
+    ep = Episode.model_validate(_json.loads(Path(args.episode).read_text()))
+    files = [Path(f) for f in args.photos]
+    dates = [d.strip() for d in args.dates.split(",")] if args.dates else []
+    if dates and len(dates) != len(files):
+        print("--dates needs one date per photo (YYYY-MM-DD, comma separated).", file=sys.stderr)
+        return 2
+    problems = check_episode(ep, len(files), len(ep.quiz))
+    if problems:
+        print("Episode problems:\n- " + "\n- ".join(problems), file=sys.stderr)
+        return 1
+    from datetime import datetime
+
+    from .imaging import to_jpeg
+    from .sources.base import Photo, PhotoRef
+
+    photos = []
+    for i, f in enumerate(files):
+        taken = datetime.fromisoformat(dates[i]) if dates else _taken_at(f)
+        jpeg, w, h = to_jpeg(f.read_bytes(), max_side=cfg.llm.image_max_side)
+        photos.append(Photo(ref=PhotoRef(id=f.name, name=f.name, taken_at=taken), jpeg=jpeg, width=w, height=h))
+
+    out = Path(args.out)
+    family = args.family or cfg.story.family_name
+    rendered = render_episode(ep, photos, date.today(), family, attached=True)
+    write_outputs(rendered, photos, out)
+    print(f"✅ {ep.title}\n   page: {out / 'photostory.html'}")
+    if not args.no_pack:
+        from .share import build_share_pack
+
+        synth = None
+        if not args.no_voice:
+            from .voice import make_synth
+
+            v = cfg.voices
+            synth = make_synth(v.model_url, v.cache_dir, v.speaker_ids, v.length_scale)
+        pack = build_share_pack(ep, photos, out / "whatsapp", video=not args.no_video,
+                                chapter_seconds=cfg.whatsapp.chapter_seconds, synth=synth)
+        print(f"   whatsapp: {len(pack.cards)} cards, polls.txt"
+              + (f", video ({'talking' if pack.talking else 'silent'})" if pack.video else ""))
+    return 0
+
+
+def cmd_quotes(args) -> int:
+    from .quotes import quotes_prompt
+
+    print(quotes_prompt())
+    return 0
+
+
+def cmd_schema(args) -> int:
+    import json as _json
+
+    from .models import Episode
+
+    print(_json.dumps(Episode.model_json_schema(), indent=1))
+    return 0
+
+
 def cmd_list(args) -> int:
     cfg = load_config(args.config)
     source = make_source(cfg, Secrets.from_env())
@@ -204,6 +270,21 @@ def main(argv: list[str] | None = None) -> int:
     ls = sub.add_parser("list", help="Check the photo source and show what it finds")
     ls.add_argument("--config", default="config.yaml")
     ls.set_defaults(fn=cmd_list)
+
+    rd = sub.add_parser("render", help="Render page + WhatsApp pack from an episode.json and photo files")
+    rd.add_argument("--episode", required=True, help="Episode JSON (see `photostory schema`)")
+    rd.add_argument("--photos", nargs="+", required=True, help="Photo files in episode order: photo 1, 2, …")
+    rd.add_argument("--dates", help="Optional comma-separated YYYY-MM-DD per photo (else EXIF/mtime)")
+    rd.add_argument("--out", default="out/render")
+    rd.add_argument("--family")
+    rd.add_argument("--config", default="config.yaml")
+    rd.add_argument("--no-pack", action="store_true", help="Only the page, no WhatsApp cards/video")
+    rd.add_argument("--no-video", action="store_true")
+    rd.add_argument("--no-voice", action="store_true", help="Silent video (skip Piper TTS)")
+    rd.set_defaults(fn=cmd_render)
+
+    sub.add_parser("quotes", help="Print the curated collage quotes").set_defaults(fn=cmd_quotes)
+    sub.add_parser("schema", help="Print the episode JSON schema").set_defaults(fn=cmd_schema)
 
     lg = sub.add_parser("onedrive-login", help="One-time Microsoft sign-in to get a refresh token")
     lg.add_argument("--client-id")

@@ -16,3 +16,13 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: pip install -e ".[dev,share,voice]" && python -m playwright install --with-deps chromium
       - run: pytest -q
+      - name: Web app end-to-end (built-in writer, headless Chromium)
+        run: |
+          mkdir -p /tmp/webdeps && cd /tmp/webdeps && npm init -y >/dev/null
+          npm install --silent mp4-muxer@5.2.2 onnxruntime-web@1.18.0 @diffusionstudio/piper-wasm@1.0.0
+          cd "$GITHUB_WORKSPACE"
+          python -c "
+          from PIL import Image
+          for i, c in enumerate(['tomato','teal','gold','slateblue','orchid','seagreen']):
+              Image.new('RGB', (1200, 900), c).save(f'/tmp/p{i}.jpg')"
+          python tests/webapp_e2e.py --libs /tmp/webdeps/node_modules --writer offline --out /tmp/e2e --photos /tmp/p*.jpg
