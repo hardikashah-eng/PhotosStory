@@ -85,8 +85,8 @@ def build_user_content(photos: list[Photo], cfg: Config, theme: str | None) -> l
                 f"Optional characters you may use:\n{cast}\n"
                 f"Suggested premise: {theme or 'your choice — surprise us'}\n\n"
                 f"Create the episode for these {len(photos)} photos: one caption per photo, one story beat per "
-                f"photo, exactly {s.quiz_questions} quiz questions, and an original silly song with a chorus "
-                f"everyone can shout along to."
+                f"photo, exactly {s.quiz_questions} quiz questions, an original silly song with a chorus "
+                f"everyone can shout along to, and one heartfelt collage message about the family."
             ),
         }
     )
@@ -183,5 +183,6 @@ def fake_episode(photos: list[Photo], cfg: Config) -> Episode:
             ],
             chorus="Oh the crumb trail blues\nGot cookie on my shoes",
         ),
+        collage_message="Every crumb, every clue and every giggle along the way: the best mysteries are the ones we solve together.",
         next_week_teaser="Next Thursday: the great sock disappearance.",
     )

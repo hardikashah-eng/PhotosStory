@@ -6,6 +6,7 @@ Every Thursday morning an agent picks **10 random family photos** (from OneDrive
 - 📖 **An imaginary story** that weaves all 10 photos into one adventure
 - 🧠 **A family quiz** (interactive in the browser, answer key in the email)
 - 🎤 **An original silly sing-along song** with a shout-along chorus
+- ❤️ **A family collage**: all the week's photos as a dated scrapbook timeline with one heartfelt line
 
 Each week the episode is published as its own **web page with an unlisted link**. You get one short email with **📖 Open** and **💬 Share on WhatsApp** buttons. On your phone, tap Share and pick your family groups. The link shows a preview with the cover photo and title.
 (If publishing is off or fails, the full episode is emailed instead, with photos inline and an interactive `photostory.html` attached.)
@@ -23,8 +24,9 @@ An `.html` file arrives in WhatsApp as a "document", so every episode also comes
 
 | File | How to use it in WhatsApp |
 |---|---|
-| `photostory.mp4` | ~60 s slideshow (slow zoom, captions, dip-to-black cuts), ~5 MB. Send as a video. |
-| `cards/*.jpg` | 1080×1350 story cards: title, one per chapter, ending + quiz teaser, song. Select them all and send as one album. |
+| `photostory.mp4` | ~70 s slideshow (slow zoom, captions, dip-to-black cuts) ending on the collage, ~5 MB. Send as a video. |
+| `cards/*.jpg` | 1080×1350 story cards: title, one per chapter, ending + quiz teaser, song, and the family collage. Select them all and send as one album. |
+| `cards/NN_collage.jpg` | **Family collage**: every photo of the week on one scrapbook page, oldest first, each with a year sticker. Titled "17 Years of Us" (built from the photo dates), with one heartfelt line from Claude. Also the video's final scene, and a good group photo or Status. |
 | `polls.txt` | The quiz as WhatsApp polls (📎 → Poll), plus an answer-reveal message for the next day. |
 
 Rendering uses headless Chromium (for emoji and typography) and ffmpeg:
