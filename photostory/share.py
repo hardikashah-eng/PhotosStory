@@ -3,7 +3,8 @@
 WhatsApp handles an .html file badly (it arrives as a "document"), so each episode is
 also turned into formats that play natively in a chat:
 
-- cards/NN_*.jpg   1080x1350 (4:5) images: title, one per chapter, ending + quiz teaser, song
+- cards/NN_*.jpg   1080x1350 (4:5) images: title, one per chapter, ending + quiz teaser, song,
+                   and a family collage (timeline of every photo with year stickers)
 - polls.txt        the quiz as WhatsApp polls (question + options) plus an answer-reveal message
 - photostory.mp4   ~60 s slideshow: slow zoom on each photo, caption fade-in, dip-to-black cuts
 
@@ -54,6 +55,7 @@ class SharePack:
     cards: list[Path] = field(default_factory=list)
     polls: Path | None = None
     video: Path | None = None
+    collage: Path | None = None
 
     def files(self) -> list[Path]:
         return [p for p in [self.video, *self.cards, self.polls] if p]
@@ -156,7 +158,66 @@ def card_pages(ep: Episode, photos: list[Photo]) -> list[tuple[str, str]]:
   <div style='display:grid;grid-template-columns:1fr 1fr;gap:34px 56px;width:100%;margin-top:40px'>{cells}</div>
   <div class='foot' style='color:#8c8178'>🎬 {title}</div>""", "dark"),
     ))
+    pages.append((f"{n + 3:02d}_collage", collage_page(ep, photos)))
     return pages
+
+
+# ---------------------------------------------------------------- collage
+
+def _rows(n: int) -> list[int]:
+    """Split n photos into rows of 2-4, longer rows in the middle (10 -> [3, 4, 3])."""
+    if n <= 4:
+        return [n]
+    r = -(-n // 4)  # ceil
+    base, extra = divmod(n, r)
+    rows = [base] * r
+    mid = r // 2
+    for k in range(extra):  # hand extras to the middle rows first
+        rows[(mid + (k + 1) // 2 * (-1) ** k) % r] += 1
+    return rows
+
+
+def collage_title(photos: list[Photo]) -> tuple[str, str]:
+    years = sorted({p.ref.taken_at.year for p in photos if p.ref.taken_at})
+    if len(years) >= 2 and years[-1] - years[0] >= 2:
+        return f"{years[-1] - years[0]} Years of Us", f"{years[0]} — {years[-1]}"
+    if years:
+        return "Our Memories", str(years[0]) if len(years) == 1 else f"{years[0]} — {years[-1]}"
+    return "Our Memories", "This week's photos"
+
+
+def collage_page(ep: Episode, photos: list[Photo]) -> str:
+    """Scrapbook timeline of every photo in the episode, oldest first, with year stickers."""
+    ordered = sorted(photos, key=lambda p: (p.ref.taken_at is None, p.ref.taken_at or 0))
+    title, span = collage_title(photos)
+    rows = _rows(len(ordered))
+    usable_w, gap = 960, 22
+    row_h = min(300, (800 - gap * (len(rows) - 1)) / len(rows))
+    tilts = [-3.2, 2.4, -1.4, 3.0, -2.6, 1.6, -0.8, 2.8, -3.4, 1.2, -2.0, 2.2]
+    html_rows, k = [], 0
+    for cols in rows:
+        w = min((usable_w - gap * (cols - 1)) / cols, (row_h - 24) * 4 / 3 + 24)
+        tiles = []
+        for _ in range(cols):
+            p = ordered[k]
+            year = p.ref.taken_at.year if p.ref.taken_at else ""
+            sticker = (f"<div style='position:absolute;left:-10px;bottom:-12px;background:#d9572b;color:#fff;"
+                       f"font:800 {max(18, int(w / 11))}px/1 {SANS};padding:7px 12px;border-radius:10px;"
+                       f"box-shadow:0 3px 8px rgba(0,0,0,.2);transform:rotate(-4deg)'>{year}</div>") if year else ""
+            tiles.append(
+                f"<div style='position:relative;background:#fff;padding:10px;width:{w:.0f}px;"
+                f"box-shadow:0 8px 22px rgba(43,36,32,.22);transform:rotate({tilts[k % len(tilts)]}deg)'>"
+                f"<div style='width:100%;aspect-ratio:4/3;background:url({_uri(p)}) center 30%/cover'></div>{sticker}</div>"
+            )
+            k += 1
+        html_rows.append(f"<div style='display:flex;justify-content:center;gap:{gap}px'>{''.join(tiles)}</div>")
+    return _page(f"""
+  <div class='kicker'>Thursday PhotoStory · Our memories</div>
+  <h1 style='font-size:80px;line-height:1.05;text-align:center;margin-top:20px'>{_e(title)}</h1>
+  <div style='font:700 28px/1 {SANS};letter-spacing:.2em;color:#7a6e64;margin-top:14px'>{_e(span)}</div>
+  <div style='flex:1;display:flex;flex-direction:column;justify-content:center;gap:{gap + 8}px;width:100%'>{''.join(html_rows)}</div>
+  <p style='font-size:38px;line-height:1.4;font-style:italic;text-align:center;max-width:920px;margin-bottom:40px'>❤️ {_e(ep.collage_message)}</p>
+  <div class='foot'>🎬 {_e(ep.title)}</div>""")
 
 
 # ---------------------------------------------------------------- video layers
@@ -244,6 +305,8 @@ def build_share_pack(ep: Episode, photos: list[Photo], out_dir: Path, video: boo
                 path = cards_dir / f"{stem}.jpg"
                 Image.open(io.BytesIO(page.screenshot())).convert("RGB").save(path, quality=86, optimize=True)
                 pack.cards.append(path)
+            by_kind = {p.stem.split("_", 1)[1]: p for p in pack.cards}
+            pack.collage = by_kind.get("collage")
 
             if want_video:
                 big = browser.new_page(viewport={"width": W, "height": H}, device_scale_factor=2)
@@ -259,8 +322,9 @@ def build_share_pack(ep: Episode, photos: list[Photo], out_dir: Path, video: boo
                     text_img = tmp / f"t{i:02d}.png"
                     page.screenshot(path=str(text_img), omit_background=True)
                     _chapter_scene(photo_img, text_img, chapter_seconds, s := tmp / f"s{i:02d}.mp4"); scenes.append(s)
-                _zoom_scene(pack.cards[-2], 4, s := tmp / "s98.mp4"); scenes.append(s)   # ending + quiz teaser
-                _still_scene(pack.cards[-1], 7, s := tmp / "s99.mp4"); scenes.append(s)  # song: hold to read
+                _zoom_scene(by_kind["ending"], 4, s := tmp / "s97.mp4"); scenes.append(s)   # ending + quiz teaser
+                _still_scene(by_kind["song"], 7, s := tmp / "s98.mp4"); scenes.append(s)     # song: hold to read
+                _zoom_scene(by_kind["collage"], 5, s := tmp / "s99.mp4", zoom=0.03); scenes.append(s)  # finale
                 (tmp / "list.txt").write_text("".join(f"file '{p}'\n" for p in scenes))
                 pack.video = out_dir / "photostory.mp4"
                 tmpv = out_dir / "tmp_photostory.mp4"

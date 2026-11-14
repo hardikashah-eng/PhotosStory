@@ -49,6 +49,13 @@ class Episode(BaseModel):
     story_ending: str = Field(description="2-3 sentence happy, funny ending.")
     quiz: list[QuizQuestion]
     song: Song
+    collage_message: str = Field(
+        description=(
+            "One warm, sincere sentence (not a joke, max ~30 words) shown on a collage of ALL this week's photos: "
+            "what these moments together say about the family, e.g. growing up, being together, adventures shared. "
+            "No names, places or guesses about who is who."
+        )
+    )
     next_week_teaser: str = Field(description="One playful line teasing next Thursday's episode.")
 
 
