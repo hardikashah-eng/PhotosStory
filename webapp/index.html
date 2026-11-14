@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thursday PhotoStory</title>
+<meta name="description" content="Turn 10 family photos into a funny story, quiz, sing-along song, talking photos and a collage, right on your phone.">
+<meta name="theme-color" content="#261a3d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,700;1,6..12,400&display=swap" rel="stylesheet">
+<style>
+/* Plan: a photo-booth strip. Lilac paper, plum ink, one tangerine accent, mint only for "done".
+   Layout: a single column of numbered booth steps; the film strip in the hero is the one bold element. */
+:root {
+  --paper: #f0eaf7;
+  --card: #ffffff;
+  --ink: #261a3d;
+  --muted: #6d6283;
+  --line: #d9cfe8;
+  --accent: #ff7a3d;
+  --good: #1f9e7f;
+  --bad: #d23c4b;
+  --strip: #261a3d;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Nunito Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #17112a; --card: #221a38; --ink: #f1ecfa; --muted: #b3a8cc; --line: #3a2f55;
+    --accent: #ff8a52; --good: #3cc79f; --bad: #ff6b78; --strip: #0d0918; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #17112a; --card: #221a38; --ink: #f1ecfa; --muted: #b3a8cc; --line: #3a2f55;
+  --accent: #ff8a52; --good: #3cc79f; --bad: #ff6b78; --strip: #0d0918; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 17px/1.55 var(--body); -webkit-text-size-adjust: 100%; }
+main, .hero-inner { max-width: 760px; margin: 0 auto; padding: 0 18px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Hero: the film strip */
+.hero { background: var(--strip); color: #f6f1ff; padding: 26px 0 30px; overflow: hidden; }
+.hero h1 { font-size: clamp(40px, 11vw, 76px); font-weight: 800; letter-spacing: -0.02em; }
+.hero h1 span { color: var(--accent); }
+.hero p { margin: 10px 0 0; max-width: 34em; color: #d6cceb; }
+.reel { display: flex; gap: 10px; margin: 22px -18px 0; padding: 14px 18px; background:
+  radial-gradient(circle at 8px 6px, var(--paper) 3.5px, transparent 4px) 0 0 / 22px 100% repeat-x,
+  radial-gradient(circle at 8px calc(100% - 6px), var(--paper) 3.5px, transparent 4px) 0 0 / 22px 100% repeat-x,
+  #120c22; overflow-x: auto; scrollbar-width: none; }
+.reel::-webkit-scrollbar { display: none; }
+.reel figure { flex: none; margin: 0; width: 112px; aspect-ratio: 4 / 5; border-radius: 6px; overflow: hidden; position: relative; background: #3a2f55; }
+.reel img, .reel canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.reel figcaption { position: absolute; left: 6px; bottom: 6px; font: 800 12px var(--body); background: var(--accent); color: #fff; padding: 2px 7px; border-radius: 6px; }
+.reel .tag { position: absolute; right: 6px; top: 6px; font: 700 10px var(--body); letter-spacing: .08em; text-transform: uppercase; background: rgba(0,0,0,.55); color: #fff; padding: 2px 6px; border-radius: 5px; }
+.mode { display: inline-flex; gap: 8px; align-items: center; margin-top: 16px; font: 700 13px var(--body); color: #f6f1ff; background: rgba(255,255,255,.1); padding: 6px 12px; border-radius: 99px; }
+.mode b { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+
+/* Steps */
+.step { display: grid; grid-template-columns: 44px 1fr; gap: 14px; padding: 28px 0; border-bottom: 1px solid var(--line); }
+.num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font: 800 20px var(--display); background: var(--ink); color: var(--paper); }
+.step h2 { font-size: 26px; font-weight: 800; }
+.step .hint { color: var(--muted); margin: 4px 0 14px; font-size: 15px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { border: 0; border-radius: 99px; padding: 12px 20px; font-weight: 700; cursor: pointer; background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.btn.primary { background: var(--accent); color: #fff; box-shadow: none; font-size: 18px; padding: 15px 26px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.small { padding: 8px 14px; font-size: 14px; }
+.file { position: relative; overflow: hidden; }
+.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+label.f { display: grid; gap: 6px; font-weight: 700; font-size: 15px; }
+label.f span { font-weight: 400; color: var(--muted); font-size: 13px; }
+input[type=text], input[type=password], select, textarea { width: 100%; background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 11px 13px; }
+textarea { min-height: 76px; resize: vertical; }
+.grid2 { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; margin-top: 14px; }
+.thumb { position: relative; border-radius: 10px; overflow: hidden; background: var(--card); border: 3px solid transparent; cursor: pointer; padding: 0; }
+.thumb.on { border-color: var(--accent); }
+.thumb img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.thumb .yr { position: absolute; left: 4px; bottom: 4px; font: 800 11px var(--body); background: var(--ink); color: var(--paper); padding: 1px 6px; border-radius: 5px; }
+.thumb .ck { position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font: 800 13px/22px var(--body); text-align: center; }
+.thumb:not(.on) .ck { background: rgba(0,0,0,.45); }
+.count { font-weight: 700; }
+.tags { display: grid; gap: 8px; margin-top: 12px; }
+.tags label { display: grid; grid-template-columns: 42px 1fr; gap: 10px; align-items: center; font-size: 14px; }
+.tags img { width: 42px; height: 42px; object-fit: cover; border-radius: 8px; }
+
+.writers { display: grid; gap: 10px; }
+.writer { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 13px 14px; cursor: pointer; }
+.writer input { margin-top: 4px; accent-color: var(--accent); }
+.writer b { display: block; }
+.writer small { color: var(--muted); font-size: 14px; }
+.writer.disabled { opacity: .5; cursor: default; }
+.keybox { display: grid; gap: 10px; margin-top: 4px; }
+
+.status { margin-top: 16px; display: grid; gap: 6px; font-size: 15px; }
+.status div::before { content: "○ "; color: var(--muted); }
+.status .done::before { content: "● "; color: var(--good); }
+.status .run::before { content: "◐ "; color: var(--accent); }
+.status .err { color: var(--bad); }
+.status .err::before { content: "✕ "; }
+.bar { height: 6px; border-radius: 9px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+/* Results */
+#result { padding: 30px 0 60px; }
+#result[hidden] { display: none; }
+.ep-head h2 { font-size: clamp(32px, 8vw, 48px); font-weight: 800; }
+.ep-head p { color: var(--muted); font-style: italic; margin: 6px 0 0; }
+.tabs { display: flex; gap: 6px; margin: 22px 0 6px; overflow-x: auto; scrollbar-width: none; }
+.tabs button { flex: none; border: 0; border-radius: 99px; padding: 9px 16px; font-weight: 700; background: var(--card); color: var(--ink); cursor: pointer; box-shadow: inset 0 0 0 1.5px var(--line); }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); box-shadow: none; }
+.panel { padding-top: 14px; }
+.panel[hidden] { display: none; }
+.beat { display: grid; gap: 12px; padding: 18px 0; border-bottom: 1px dashed var(--line); }
+.beat img { width: 100%; border-radius: 12px; display: block; max-height: 520px; object-fit: contain; background: #000; }
+.beat .cap { font-style: italic; }
+.beat h3 { font-size: 22px; }
+.kick { font: 800 12px var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.say { display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: center; background: var(--card); border-radius: 14px; padding: 10px 12px; border: 1.5px solid var(--line); }
+.say button { width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 20px; cursor: pointer; }
+.say button.on { background: var(--ink); color: var(--paper); }
+.say small { display: block; font: 800 11px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.q { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 12px; border: 1.5px solid var(--line); }
+.q p { margin: 0 0 10px; font-weight: 700; }
+.q .opts { display: grid; gap: 8px; }
+.q .opts button { text-align: left; border-radius: 10px; border: 1.5px solid var(--line); background: transparent; padding: 10px 12px; cursor: pointer; font-weight: 700; }
+.q .opts button.right { border-color: var(--good); color: var(--good); }
+.q .opts button.wrong { border-color: var(--bad); color: var(--bad); text-decoration: line-through; }
+.q .why { display: none; color: var(--muted); font-size: 15px; margin-top: 8px; }
+.q.done .why { display: block; }
+.song { background: var(--ink); color: var(--paper); border-radius: 18px; padding: 22px; }
+.song h3 { font-size: 26px; }
+.song .verse { white-space: pre-line; margin: 14px 0; }
+.song .chorus { white-space: pre-line; font-weight: 700; color: var(--accent); border-left: 3px solid var(--accent); padding-left: 12px; }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.shots figure { margin: 0; display: grid; gap: 6px; }
+.shots img { width: 100%; border-radius: 10px; display: block; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.shots figcaption { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; color: var(--muted); align-items: center; }
+.collage img { width: 100%; max-width: 540px; border-radius: 12px; display: block; box-shadow: 0 10px 28px rgba(0,0,0,.2); }
+video { width: 100%; max-width: 420px; border-radius: 12px; background: #000; display: block; }
+pre.polls { white-space: pre-wrap; background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 14px; font: 14px/1.5 ui-monospace, Menlo, monospace; max-height: 320px; overflow: auto; }
+.note { color: var(--muted); font-size: 14px; }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 99px; font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 9; }
+.toast.show { opacity: 1; }
+footer { text-align: center; color: var(--muted); font-size: 13px; padding: 26px 18px 40px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <h1>Thursday <span>Photo</span>Story</h1>
+    <p>Pick 10 family photos. Get a funny story, a quiz, a sing-along song, photos that talk, and a collage, ready to share in the family WhatsApp group.</p>
+    <div class="mode" id="mode"><b></b><span>Checking where this is running…</span></div>
+  </div>
+  <div class="reel" id="reel" aria-label="Photo strip"></div>
+</header>
+
+<main>
+  <section class="step" id="s1">
+    <div class="num">1</div>
+    <div>
+      <h2>Pick your photos</h2>
+      <p class="hint">Choose 3 to 40 photos. The app picks 10 from different years; tap a photo to swap it in or out. Photos stay on your phone except the ones sent to write the story.</p>
+      <div class="row">
+        <span class="btn file"><input id="files" type="file" accept="image/*" multiple aria-label="Choose photos">Choose photos</span>
+        <button class="btn small" id="repick" type="button" disabled>Pick 10 for me</button>
+        <span class="count" id="count">No photos yet</span>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+  </section>
+
+  <section class="step" id="s2">
+    <div class="num">2</div>
+    <div>
+      <h2>Your family</h2>
+      <p class="hint">All optional. Names help the story, but nothing here is required.</p>
+      <div class="grid2">
+        <label class="f" for="family">Family name<input id="family" type="text" placeholder="The Shah Family" autocomplete="off"></label>
+        <label class="f" for="theme">Story idea
+          <select id="theme">
+            <option value="">Surprise us</option>
+            <option>a time-travel mix-up</option>
+            <option>a secret mission</option>
+            <option>a pirate treasure hunt</option>
+            <option>a nature documentary narrated by a very dramatic owl</option>
+            <option>a cooking show where everything goes slightly wrong</option>
+            <option>a mystery: who ate the last cookie?</option>
+            <option>a space expedition</option>
+            <option>a superhero origin story</option>
+          </select>
+        </label>
+      </div>
+      <label class="f" for="cast" style="margin-top:14px">Characters <span>One per line, e.g. "Dad, the snack detective" or "Biscuit the dog"</span><textarea id="cast"></textarea></label>
+    </div>
+  </section>
+
+  <section class="step" id="s3">
+    <div class="num">3</div>
+    <div>
+      <h2>Who writes it</h2>
+      <p class="hint">Claude looks at the photos and writes something different every week. The built-in writer needs nothing and works offline, but can't see the photos.</p>
+      <div class="writers" id="writers">
+        <label class="writer" id="w-claude"><input type="radio" name="writer" value="claude"><span><b>Claude (in this app)</b><small>Uses your Claude plan. Available when this page is open inside Claude.</small></span></label>
+        <label class="writer" id="w-api"><input type="radio" name="writer" value="api"><span><b>Claude with my API key</b><small>Works anywhere. A few cents per story, billed to your Anthropic account.</small></span></label>
+        <label class="writer" id="w-offline"><input type="radio" name="writer" value="offline"><span><b>Built-in writer (free, offline)</b><small>Fun templates using your dates and tags. Add a word per photo below for better results.</small></span></label>
+      </div>
+      <div class="keybox" id="keybox" hidden>
+        <label class="f" for="apikey">Anthropic API key <span>Stored only on this phone. Get one at console.anthropic.com.</span><input id="apikey" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+        <div class="row"><button class="btn small" id="forget" type="button">Forget key</button></div>
+      </div>
+      <div class="tags" id="tags" hidden></div>
+      <div class="row" style="margin-top:14px">
+        <label class="writer" style="flex:1"><input type="checkbox" id="wantVoice" checked><span><b>Talking photos in the video</b><small id="voiceNote">Downloads a natural voice once (about 75 MB, then kept on this phone).</small></span></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="s4">
+    <div class="num">4</div>
+    <div>
+      <h2>Make it</h2>
+      <p class="hint">Writing takes about a minute. The video takes another one or two.</p>
+      <div class="row">
+        <button class="btn primary" id="make" type="button" disabled>Make our PhotoStory</button>
+        <button class="btn small" id="stop" type="button" hidden>Stop</button>
+      </div>
+      <div class="status" id="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section id="result" hidden>
+    <div class="ep-head"><div class="kick" id="r-kick"></div><h2 id="r-title"></h2><p id="r-tag"></p></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" aria-selected="true" data-p="p-story">Story</button>
+      <button role="tab" aria-selected="false" data-p="p-quiz">Quiz</button>
+      <button role="tab" aria-selected="false" data-p="p-song">Song</button>
+      <button role="tab" aria-selected="false" data-p="p-collage">Collage</button>
+      <button role="tab" aria-selected="false" data-p="p-share">Share</button>
+    </div>
+    <div class="panel" id="p-story"></div>
+    <div class="panel" id="p-quiz" hidden></div>
+    <div class="panel" id="p-song" hidden></div>
+    <div class="panel collage" id="p-collage" hidden></div>
+    <div class="panel" id="p-share" hidden>
+      <h3 style="font-size:22px">Video</h3>
+      <p class="note" id="v-note">Making the video…</p>
+      <div id="v-box"></div>
+      <h3 style="font-size:22px;margin-top:26px">Story cards</h3>
+      <p class="note">Save them all, then in WhatsApp tap + → Photos, pick them in order and send. They arrive as one swipeable album.</p>
+      <div class="row" style="margin:10px 0 14px"><button class="btn small" id="saveAll" type="button">Save all cards</button></div>
+      <div class="shots" id="cards"></div>
+      <h3 style="font-size:22px;margin-top:26px">Quiz as WhatsApp polls</h3>
+      <p class="note">In WhatsApp tap + → Poll, then paste each question and its options.</p>
+      <div class="row" style="margin:10px 0"><button class="btn small" id="copyPolls" type="button">Copy polls</button></div>
+      <pre class="polls" id="polls"></pre>
+    </div>
+  </section>
+</main>
+<footer>Thursday PhotoStory · open source at github.com/hardikashah-eng/PhotosStory · no photos are stored anywhere by this app.</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ============================== data ============================== */
+const QUOTES = /*QUOTES*/[[1, "The years teach much which the days never know.", "Ralph Waldo Emerson", "Experience (1844)", ["time", "growing-up", "memories"]], [2, "Where we love is home — home that our feet may leave, but not our hearts.", "Oliver Wendell Holmes Sr.", "Homesick in Heaven", ["home", "family", "travel"]], [3, "Memory is the diary that we all carry about with us.", "Oscar Wilde", "The Importance of Being Earnest (1895)", ["memories"]], [4, "Grow old along with me! The best is yet to be.", "Robert Browning", "Rabbi Ben Ezra (1864)", ["time", "love", "growing-up"]], [5, "The mountains are calling and I must go.", "John Muir", "Letter to Sarah Muir Galloway (1873)", ["mountains", "adventure", "travel"]], [6, "In every walk with nature one receives far more than he seeks.", "John Muir", "Steep Trails (1918)", ["nature", "outdoors"]], [7, "Heaven is under our feet as well as over our heads.", "Henry David Thoreau", "Walden (1854)", ["nature", "beach", "wonder"]], [8, "One touch of nature makes the whole world kin.", "William Shakespeare", "Troilus and Cressida", ["nature", "togetherness"]], [9, "Life is either a daring adventure or nothing.", "Helen Keller", "Let Us Have Faith (1940)", ["adventure"]], [10, "The family is one of nature's masterpieces.", "George Santayana", "The Life of Reason: Reason in Society (1905)", ["family"]], [11, "Be it ever so humble, there's no place like home.", "John Howard Payne", "Home! Sweet Home! (1823)", ["home", "family"]], [12, "Home is the place where, when you have to go there, they have to take you in.", "Robert Frost", "The Death of the Hired Man (1914)", ["home", "family", "humor"]], [13, "A journey of a thousand miles begins with a single step.", "Laozi", "Tao Te Ching, ch. 64", ["journey", "beginnings", "growing-up"]], [14, "Variety's the very spice of life.", "William Cowper", "The Task (1785)", ["adventure", "humor"]], [15, "Laugh, and the world laughs with you.", "Ella Wheeler Wilcox", "Solitude (1883)", ["laughter", "humor"]], [16, "One cannot think well, love well, sleep well, if one has not dined well.", "Virginia Woolf", "A Room of One's Own (1929)", ["food", "humor", "home"]], [18, "Nature always wears the colors of the spirit.", "Ralph Waldo Emerson", "Nature (1836)", ["nature", "outdoors"]], [19, "The happiest moments of my life have been the few which I have passed at home in the bosom of my family.", "Thomas Jefferson", "Letter to Francis Willis, 18 Apr. 1790", ["family", "home"]], [20, "Little drops of water, little grains of sand, make the mighty ocean and the pleasant land.", "Julia A. Fletcher Carney", "Little Things (1845)", ["small-moments", "sea", "kids"]], [21, "To see a World in a Grain of Sand, and a Heaven in a Wild Flower.", "William Blake", "Auguries of Innocence", ["wonder", "beach", "kids"]], [22, "Each day is a little life.", "Arthur Schopenhauer", "Counsels and Maxims", ["everyday", "time"]], [23, "How far that little candle throws his beams!", "William Shakespeare", "The Merchant of Venice", ["kids", "light", "kindness"]], [24, "The ornament of a house is the friends who frequent it.", "Ralph Waldo Emerson", "Domestic Life (1870)", ["home", "friends", "togetherness"]]];
+const SPEAKER_IDS = [0, 14, 30, 61, 102, 150, 211, 340, 466, 580, 712, 860];
+const LIBS = {
+  ort: "https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/ort.min.js",
+  ortWasm: "https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/",
+  phonemizer: "https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize",
+  muxer: "https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js",
+  voice: "https://huggingface.co/diffusionstudio/piper-voices/resolve/main/en/en_US/libritts_r/medium/en_US-libritts_r-medium.onnx",
+};
+const PAL = { paper: "#f0eaf7", ink: "#261a3d", muted: "#6d6283", accent: "#ff7a3d", good: "#1f9e7f", card: "#ffffff", dark: "#1b1230", gold: "#ffcf8a" };
+const DISPLAY = '"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif';
+const BODY = '"Nunito Sans", "Segoe UI", system-ui, sans-serif';
+
+/* ============================== state ============================== */
+const S = { photos: [], ep: null, cards: [], collage: null, video: null, env: { claude: false }, sample: null, tts: null, downloads: null, abort: null };
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => { const n = document.createElement(tag); Object.assign(n, props); for (const k of kids) if (k != null) n.append(k); return n; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600); };
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
+
+/* ============================== environment ============================== */
+async function detectEnv() {
+  if (window.claude && typeof window.claude.use === "function") {
+    S.env.claude = true;
+    const [sample, tts, downloads] = await Promise.all([
+      window.claude.use("sample").catch(() => null), window.claude.use("tts").catch(() => null), window.claude.use("downloads").catch(() => null)]);
+    S.sample = sample; S.tts = tts; S.downloads = downloads;
+    if (sample) { try { S.sampleLimits = await sample.limits(); } catch { S.sampleLimits = null; } }
+  }
+  const mode = $("mode").querySelector("span");
+  const claudeOk = !!(S.sample && S.sampleLimits && S.sampleLimits.images);
+  mode.textContent = claudeOk ? "Running inside Claude: stories use your Claude plan" : S.env.claude ? "Inside Claude (photo writing unavailable here)" : "Standalone app: use an API key or the free built-in writer";
+  $("w-claude").classList.toggle("disabled", !claudeOk);
+  $("w-claude").querySelector("input").disabled = !claudeOk;
+  if (S.env.claude) {  // network to model hosts is blocked inside Claude; video stays silent there
+    $("wantVoice").checked = false; $("wantVoice").disabled = true;
+    $("voiceNote").textContent = "Inside Claude the video is silent; use the 🔊 buttons to hear each photo. Open the standalone app for spoken video.";
+  }
+  const saved = store.get("ps.writer");
+  const pick = claudeOk ? "claude" : saved === "api" || saved === "offline" ? saved : (store.get("ps.key") ? "api" : "offline");
+  document.querySelector(`input[name=writer][value=${pick}]`).checked = true;
+  $("apikey").value = store.get("ps.key") || "";
+  syncWriter();
+}
+function writer() { return document.querySelector("input[name=writer]:checked")?.value || "offline"; }
+function syncWriter() {
+  const w = writer();
+  $("keybox").hidden = w !== "api";
+  $("tags").hidden = w !== "offline";
+  store.set("ps.writer", w);
+  renderTags(); updateMake();
+}
+
+/* ============================== photos ============================== */
+function exifDate(buf) {
+  try {
+    const v = new DataView(buf);
+    if (v.getUint16(0) !== 0xffd8) return null;
+    let o = 2;
+    while (o + 4 < v.byteLength) {
+      const m = v.getUint16(o), len = v.getUint16(o + 2);
+      if (m === 0xffe1 && v.getUint32(o + 4) === 0x45786966) return tiffDate(v, o + 10);
+      if ((m & 0xff00) !== 0xff00) break;
+      o += 2 + len;
+    }
+  } catch {}
+  return null;
+}
+function tiffDate(v, t) {
+  const le = v.getUint16(t) === 0x4949, g16 = (p) => v.getUint16(p, le), g32 = (p) => v.getUint32(p, le);
+  let exif = null, dt = null;
+  const str = (p, n) => { let s = ""; for (let i = 0; i < n - 1 && p + i < v.byteLength; i++) s += String.fromCharCode(v.getUint8(p + i)); return s; };
+  const scan = (ifd) => {
+    const n = g16(ifd);
+    for (let i = 0; i < n; i++) {
+      const e = ifd + 2 + i * 12, tag = g16(e), cnt = g32(e + 4), off = cnt > 4 ? t + g32(e + 8) : e + 8;
+      if (tag === 0x8769) exif = t + g32(e + 8);
+      if (tag === 0x9003) dt = str(off, cnt);
+      if (tag === 0x0132 && !dt) dt = str(off, cnt);
+    }
+  };
+  scan(t + g32(t + 4));
+  if (exif) scan(exif);
+  const m = dt && dt.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+}
+async function loadPhoto(file) {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const s = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+  const c = el("canvas", { width: Math.round(bmp.width * s), height: Math.round(bmp.height * s) });
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close?.();
+  const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.86));  // re-encoding strips EXIF/GPS
+  const exif = exifDate(await file.slice(0, 196608).arrayBuffer());
+  const taken = exif || (file.lastModified ? new Date(file.lastModified) : null);
+  return { name: file.name, blob, url: URL.createObjectURL(blob), img: c, taken, tag: "", on: false };
+}
+function pickSpread(list, k) {
+  const buckets = new Map();
+  for (const p of list) { const key = p.taken ? `${p.taken.getFullYear()}-${p.taken.getMonth()}` : "?"; (buckets.get(key) || buckets.set(key, []).get(key)).push(p); }
+  const keys = [...buckets.keys()].sort(() => Math.random() - 0.5);
+  for (const b of buckets.values()) b.sort(() => Math.random() - 0.5);
+  const out = [];
+  while (out.length < k && keys.length) for (const key of [...keys]) { if (out.length >= k) break; const b = buckets.get(key); if (b.length) out.push(b.pop()); else keys.splice(keys.indexOf(key), 1); }
+  return out;
+}
+function chosen() { return S.photos.filter((p) => p.on).sort((a, b) => (a.taken || 0) - (b.taken || 0)); }
+function repick() { S.photos.forEach((p) => (p.on = false)); pickSpread(S.photos, 10).forEach((p) => (p.on = true)); renderThumbs(); }
+function renderThumbs() {
+  const box = $("thumbs"); box.textContent = "";
+  for (const p of S.photos) {
+    const b = el("button", { type: "button", className: "thumb" + (p.on ? " on" : ""), title: p.name });
+    b.setAttribute("aria-pressed", String(p.on));
+    b.append(el("img", { src: p.url, alt: "" }), el("span", { className: "ck", textContent: p.on ? "✓" : "+" }));
+    if (p.taken) b.append(el("span", { className: "yr", textContent: p.taken.getFullYear() }));
+    b.onclick = () => { if (!p.on && chosen().length >= 12) return toast("Up to 12 photos per story"); p.on = !p.on; renderThumbs(); };
+    box.append(b);
+  }
+  const n = chosen().length;
+  $("count").textContent = S.photos.length ? `${n} of ${S.photos.length} chosen` : "No photos yet";
+  $("repick").disabled = S.photos.length <= 3;
+  renderReel(); renderTags(); updateMake();
+}
+function renderTags() {
+  const box = $("tags"); if (box.hidden) return; box.textContent = "";
+  if (!chosen().length) { box.append(el("p", { className: "note", textContent: "Choose photos first, then add a word for each (beach, birthday, snow…)." })); return; }
+  for (const p of chosen()) {
+    const inp = el("input", { type: "text", value: p.tag, placeholder: "One word: beach, cake, snow…", maxLength: 30 });
+    inp.oninput = () => (p.tag = inp.value.trim());
+    box.append(el("label", {}, el("img", { src: p.url, alt: "" }), inp));
+  }
+}
+function renderReel() {
+  const reel = $("reel"); reel.textContent = "";
+  const list = chosen().length ? chosen() : null;
+  if (list) { for (const p of list) reel.append(el("figure", {}, el("img", { src: p.url, alt: "" }), p.taken ? el("figcaption", { textContent: p.taken.getFullYear() }) : null)); return; }
+  const sample = [["🎃", 2009, "#ff7a3d"], ["🏔️", 2012, "#6f8fd8"], ["🏖️", 2017, "#2fbf9b"], ["🎂", 2019, "#e2559a"], ["🍛", 2023, "#f2b33d"], ["🐠", 2026, "#3aa0c9"]];
+  for (const [emo, yr, col] of sample) {
+    const c = el("canvas", { width: 224, height: 280 }), x = c.getContext("2d");
+    const g = x.createLinearGradient(0, 0, 224, 280); g.addColorStop(0, col); g.addColorStop(1, "#261a3d"); x.fillStyle = g; x.fillRect(0, 0, 224, 280);
+    x.font = "96px serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(emo, 112, 132);
+    reel.append(el("figure", {}, c, el("span", { className: "tag", textContent: "Example" }), el("figcaption", { textContent: yr })));
+  }
+}
+function updateMake() {
+  const n = chosen().length, w = writer();
+  const ok = n >= 3 && (w !== "api" || $("apikey").value.trim().startsWith("sk-")) && !(w === "claude" && !S.sample);
+  $("make").disabled = !ok || !!S.abort;
+}
+
+/* ============================== prompt + validation ============================== */
+function promptFor(photos, opts, describeOnly) {
+  const lines = photos.map((p, i) => `Photo ${i + 1}: taken ${p.taken ? p.taken.toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "unknown date"}${p.desc ? ` — ${p.desc}` : ""}`);
+  const cast = opts.cast.length ? opts.cast.map((c) => "- " + c).join("\n") : "(none provided; don't invent real names)";
+  return `You are the head writer of "Thursday PhotoStory", a weekly family show made from a family's own photos. Turn these ${photos.length} photos into ONE imaginary, funny adventure the whole family enjoys together.
+
+House rules (more important than being funny):
+- Family-friendly, warm and inclusive. Laugh WITH people, never AT them.
+- Never joke about anyone's body, weight, looks, age, skin, hair, clothing size, disability, ethnicity or religion.
+- Never guess real names, relationships or ages. Describe people by what they're doing unless the character list makes a match obvious.
+- Don't mention or infer locations, addresses, schools or anything identifying.
+- If a photo is unclear or boring, give it a gentle, imaginative role (a mysterious map, a portal).
+- Song lyrics 100% original; for the tune use an original rhythm or a traditional public-domain melody only.
+- Quiz questions must be answerable by looking at the photos or reading the story.
+- Talking photos: one short first-person line per photo spoken by someone or something in it (a person described by what they're doing, a pet, an object, or the place). Warm and silly, max 16 words, no real names.
+- For the collage pick the quote id from the list below that best fits ALL the photos together. Never invent quotes.
+
+Family: ${opts.family || "Our Family"}
+Optional characters:
+${cast}
+Suggested premise: ${opts.theme || "your choice, surprise us"}
+${describeOnly ? "" : "\nThe photos are attached in order 1.." + photos.length + ".\n"}${lines.join("\n")}
+
+Collage quotes (id: text — author):
+${QUOTES.map((q) => `${q[0]}: "${q[1]}" — ${q[2]}`).join("\n")}
+
+Reply with ONLY one JSON object, no other text, exactly this shape (photo numbers are 1-based; quiz "answer" is the 0-based index of the right option):
+{"title": str, "tagline": str, "theme": str,
+ "captions": [{"photo": int, "caption": str (max ~20 words), "emoji": str}],  // exactly one per photo
+ "story_intro": str (2-3 sentences),
+ "story": [{"photo": int, "heading": str, "text": str (2-4 sentences)}],  // one per photo, in story order
+ "story_ending": str,
+ "quiz": [{"question": str, "options": [str, str, str, str], "answer": int, "explanation": str}],  // exactly 5
+ "song": {"title": str, "style": str, "tune_hint": str, "verses": [str, str, str], "chorus": str},  // lines separated by \\n
+ "voices": [{"photo": int, "speaker": str, "line": str}],  // one per photo
+ "collage_quote_id": int, "collage_message": str (one sincere sentence about the family, not a joke),
+ "next_week_teaser": str}`;
+}
+function check(ep, n) {
+  const p = [], need = Array.from({ length: n }, (_, i) => i + 1).join(",");
+  const nums = (a) => (Array.isArray(a) ? a.map((x) => +x.photo).sort((x, y) => x - y).join(",") : "");
+  if (!ep || typeof ep !== "object") return ["reply was not a JSON object"];
+  for (const k of ["title", "tagline", "story_intro", "story_ending", "collage_message", "next_week_teaser"]) if (typeof ep[k] !== "string" || !ep[k].trim()) p.push(`missing ${k}`);
+  if (nums(ep.captions) !== need) p.push(`captions must cover photos 1..${n} exactly once`);
+  if (nums(ep.story) !== need) p.push(`story must have one beat per photo 1..${n}`);
+  if (nums(ep.voices) !== need) p.push(`voices must have one line per photo 1..${n}`);
+  if (!Array.isArray(ep.quiz) || ep.quiz.length !== 5) p.push("quiz must have exactly 5 questions");
+  else ep.quiz.forEach((q, i) => { if (!Array.isArray(q.options) || q.options.length < 3 || !(q.answer >= 0 && q.answer < q.options.length)) p.push(`quiz question ${i + 1} is malformed`); });
+  if (!ep.song || !Array.isArray(ep.song.verses) || !ep.song.chorus) p.push("song needs verses and a chorus");
+  if (!QUOTES.some((q) => q[0] === +ep.collage_quote_id)) p.push("collage_quote_id must be an id from the list");
+  return p;
+}
+function shuffleQuiz(ep) { for (const q of ep.quiz) { const right = q.options[q.answer]; q.options.sort(() => Math.random() - 0.5); q.answer = q.options.indexOf(right); } }
+
+/* ============================== writers ============================== */
+async function writeWithClaude(photos, opts, signal) {
+  const max = S.sampleLimits?.images?.maxCount || 0;
+  const call = (prompt, images) => S.sample.json(prompt, { images, signal, modelTier: "default", cache: false });
+  if (max < photos.length) {  // describe in batches, then write from the descriptions
+    for (let i = 0; i < photos.length; i += Math.max(1, max)) {
+      const batch = photos.slice(i, i + Math.max(1, max));
+      status(`Claude is looking at photos ${i + 1}–${i + batch.length}…`, "run");
+      const d = await call(`Describe each of these ${batch.length} family photos in one neutral sentence (what is happening, objects, setting type; no guesses about names, ages or exact places). Reply with only a JSON array of strings, one per photo, in order.`, batch.map((p) => p.blob));
+      batch.forEach((p, j) => (p.desc = String(d?.[j] || "")));
+    }
+    let ep = await call(promptFor(photos, opts, true));
+    const probs = check(ep, photos.length);
+    if (probs.length) ep = await call(promptFor(photos, opts, true) + "\n\nYour previous reply had these problems, fix them:\n- " + probs.join("\n- "));
+    return ep;
+  }
+  let ep = await call(promptFor(photos, opts), photos.map((p) => p.blob));
+  const probs = check(ep, photos.length);
+  if (probs.length) ep = await call(promptFor(photos, opts) + "\n\nA previous attempt had these problems, avoid them:\n- " + probs.join("\n- "), photos.map((p) => p.blob));
+  return ep;
+}
+async function blobToB64(blob) { const b = new Uint8Array(await blob.arrayBuffer()); let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); }
+function parseJsonReply(text) { const a = text.indexOf("{"), b = text.lastIndexOf("}"); if (a < 0 || b < a) throw new Error("Claude's reply had no JSON"); return JSON.parse(text.slice(a, b + 1)); }
+async function writeWithApi(photos, opts, signal) {
+  const key = $("apikey").value.trim();
+  const imgs = await Promise.all(photos.map(async (p) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: await blobToB64(p.blob) } })));
+  const ask = async (extra = "") => {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal,
+      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 8000, messages: [{ role: "user", content: [...imgs, { type: "text", text: promptFor(photos, opts) + extra }] }] }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 401 ? "That API key was refused. Check it at console.anthropic.com." : body?.error?.message || `Claude API error ${r.status}`);
+    return parseJsonReply((body.content || []).map((c) => c.text || "").join(""));
+  };
+  let ep = await ask();
+  const probs = check(ep, photos.length);
+  if (probs.length) ep = await ask("\n\nA previous attempt had these problems, avoid them:\n- " + probs.join("\n- "));
+  return ep;
+}
+function writeOffline(photos, opts) {
+  const R = (a) => a[Math.floor(Math.random() * a.length)];
+  const n = photos.length, yrs = photos.map((p) => (p.taken ? p.taken.getFullYear() : null));
+  const fallback = photos.map(() => R(["mystery", "adventure", "snack", "secret", "surprise", "treasure"]));
+  const tag = (i) => photos[i].tag || fallback[i];
+  const fam = opts.family || "Our Family";
+  const premise = opts.theme || R(["a time-travel mix-up", "a secret mission", "a pirate treasure hunt", "a space expedition"]);
+  const span = yrs.filter(Boolean); const y0 = Math.min(...span), y1 = Math.max(...span);
+  const em = { beach: "🏖️", snow: "❄️", cake: "🎂", birthday: "🎂", dog: "🐶", cat: "🐱", food: "🍛", dinner: "🍽️", mountain: "🏔️", pumpkin: "🎃", sea: "🌊", park: "🌳", school: "🎒" };
+  const emoji = (i) => em[(photos[i].tag || "").toLowerCase()] || R(["✨", "😄", "🚀", "🎉", "🕵️", "🗺️"]);
+  const capT = ["Exhibit {i}: proof that {t} was absolutely the plan.", "Breaking news from {y}: {t} levels reach an all-time high.", "When the {t} is this good, nobody needs instructions.", "Mission log, {y}: {t} acquired. Snacks: unknown.", "Scientists still can't explain this much {t}."];
+  const beatT = ["The machine landed in {y} right in the middle of the {t}. Nobody was ready, which made it perfect.", "Next stop: {y}. The {t} looked suspicious, so the crew investigated with maximum giggles.", "A wobbly landing in {y}! The {t} turned out to be the clue everyone needed.", "In {y} the crew discovered that {t} is best enjoyed together, ideally with snacks.", "The map pointed to {y}. Somewhere in the {t} was the next piece of the puzzle."];
+  const sayT = ["Hello from {y}! Has anyone seen my snacks?", "I've been waiting here since {y} for this photo!", "Is this the time machine? I'll take a window seat, please.", "Official {t} inspector, reporting for duty!", "Shh! The {t} is a secret. Don't tell next week's episode."];
+  const fill = (s, i) => s.replace(/\{i\}/g, i + 1).replace(/\{y\}/g, yrs[i] || "a mystery year").replace(/\{t\}/g, tag(i));
+  const order = photos.map((_, i) => i);
+  const quiz = [];
+  const pairs = order.filter((i) => yrs[i]);
+  if (pairs.length >= 1) { const i = R(pairs), right = yrs[i]; const opts4 = [...new Set([right, right - 1, right + 2, right - 3])].map(String); quiz.push({ question: `In which year did chapter ${i + 1} happen?`, options: opts4, answer: 0, explanation: `The photo for chapter ${i + 1} was taken in ${right}.` }); }
+  if (pairs.length >= 2) { const a = pairs[0], b = pairs[pairs.length - 1]; quiz.push({ question: `Which happened first: chapter ${b + 1} or chapter ${a + 1}?`, options: [`Chapter ${a + 1}`, `Chapter ${b + 1}`, "Both on the same day"], answer: 0, explanation: `Chapter ${a + 1} is from ${yrs[a]}, chapter ${b + 1} from ${yrs[b]}.` }); }
+  quiz.push({ question: "How many photos are in this week's story?", options: [String(n), String(n + 2), String(n - 1), "100"], answer: 0, explanation: `Count the chapters: ${n}!` });
+  const tagged = order.filter((i) => photos[i].tag);
+  for (const i of tagged.slice(0, 2)) quiz.push({ question: `Chapter ${i + 1} is all about…`, options: [photos[i].tag, R(["volcanoes", "penguins", "homework"]), R(["robots", "dinosaurs", "laundry"])], answer: 0, explanation: `Look closely at chapter ${i + 1}!` });
+  while (quiz.length < 5) quiz.push({ question: R(["Who should pilot next week's time machine?", "What should the crew pack next time?", "Best snack for time travel?"]), options: ["The family dog", "Grandma", "The youngest crew member", "Everyone at once"], answer: 2, explanation: "Official crew vote! (Any answer is a winner.)" });
+  const tags = order.map(tag);
+  const q = QUOTES.find((x) => x[4].some((t) => tags.join(" ").includes(t))) || QUOTES[0];
+  return {
+    title: R(["The Great {t} Expedition", "Mission: {t}", "The Case of the Missing {t}"]).replace("{t}", (tags[0][0].toUpperCase() + tags[0].slice(1))),
+    tagline: `${n} photos, ${span.length ? `${y1 - y0 + 1} years` : "one family"}, and absolutely no instructions.`,
+    theme: premise,
+    captions: order.map((i) => ({ photo: i + 1, caption: fill(R(capT), i), emoji: emoji(i) })),
+    story_intro: `It started as an ordinary Thursday for ${fam}, until ${premise} turned the photo album into a launchpad. Seatbelts on!`,
+    story: order.map((i) => ({ photo: i + 1, heading: R(["Touchdown", "Plot Twist", "The Clue", "Snack Break", "Big Discovery", "Surprise!"]) + ` in ${yrs[i] || "the Unknown"}`, text: fill(R(beatT), i) })),
+    story_ending: "With one last wobble, the crew landed back home, tired, happy and slightly out of snacks. Same time next Thursday?",
+    quiz,
+    song: { title: "The Thursday Time-Machine Song", style: "bouncy sing-along", tune_hint: "To the traditional tune of 'Row, Row, Row Your Boat'",
+      verses: [`We flew back to ${y0 || "long ago"},\nWith ${tags[0]} in the air,\nWe laughed until our tummies hurt,\nAnd snacks were everywhere!`, `We zoomed ahead to ${y1 || "today"},\nThe ${tags[n - 1]} said hello,\nWe waved and danced and took a pic,\nThen off again we go!`],
+      chorus: "Photos, photos, flying through the years,\nThursday nights are family nights,\nGive yourselves three cheers!" },
+    voices: order.map((i) => ({ photo: i + 1, speaker: `the ${tag(i)}`, line: fill(R(sayT), i) })),
+    collage_quote_id: q[0],
+    collage_message: "Every photo is a little door back to a day we shared, and the best part is always who was there.",
+    next_week_teaser: "Next Thursday: the time machine gets a new pilot. Hint: it has four legs.",
+  };
+}
+
+/* ============================== drawing helpers ============================== */
+function wrap(ctx, text, maxW) {
+  const out = [];
+  for (const para of String(text).split("\n")) {
+    let line = "";
+    for (const w of para.split(/\s+/)) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }
+    out.push(line);
+  }
+  return out;
+}
+function textAt(ctx, text, x, y, maxW, lh, align = "left") { ctx.textAlign = align; const ls = wrap(ctx, text, maxW); ls.forEach((l, i) => ctx.fillText(l, x, y + i * lh)); return ls.length * lh; }
+function cover(ctx, img, x, y, w, h, fy = 0.3) { const s = Math.max(w / img.width, h / img.height), sw = w / s, sh = h / s; ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) * fy, sw, sh, x, y, w, h); }
+function fit(img, maxW, maxH) { const s = Math.min(maxW / img.width, maxH / img.height); return [img.width * s, img.height * s]; }
+function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function canvas(w, h) { const c = el("canvas", { width: w, height: h }); return [c, c.getContext("2d")]; }
+const toBlob = (c, type = "image/jpeg", q = 0.88) => new Promise((r) => c.toBlob(r, type, q));
+function polaroid(ctx, img, cx, cy, maxW, maxH, rot, caption) {
+  ctx.save(); ctx.font = `600 34px ${BODY}`;
+  const [w, h] = fit(img, maxW, maxH), pad = 18, capLines = caption ? wrap(ctx, caption, w - 10) : [], capH = caption ? capLines.length * 42 + 22 : 0;
+  ctx.translate(cx, cy); ctx.rotate(rot * Math.PI / 180);
+  const W = w + pad * 2, H = h + pad * 2 + capH;
+  ctx.shadowColor = "rgba(38,26,61,.25)"; ctx.shadowBlur = 34; ctx.shadowOffsetY = 12; ctx.fillStyle = "#fff"; ctx.fillRect(-W / 2, -H / 2, W, H);
+  ctx.shadowColor = "transparent"; ctx.drawImage(img, -w / 2, -H / 2 + pad, w, h);
+  if (caption) { ctx.fillStyle = PAL.ink; ctx.textAlign = "center"; capLines.forEach((l, i) => ctx.fillText(l, 0, -H / 2 + pad + h + 46 + i * 42)); }
+  ctx.restore(); return H;
+}
+function kicker(ctx, text, x, y, color = PAL.accent, align = "center") { ctx.font = `800 26px ${BODY}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.letterSpacing = "4px"; ctx.fillText(text.toUpperCase(), x, y); ctx.letterSpacing = "0px"; }
+function footer(ctx, title, color = "#9a8fb0") { ctx.font = `700 22px ${BODY}`; ctx.fillStyle = color; ctx.textAlign = "center"; ctx.fillText("🎬 " + title, 540, 1318); }
+
+/* ============================== cards (1080×1350) ============================== */
+function cardTitle(ep, photos) {
+  const [c, x] = canvas(1080, 1350); x.fillStyle = PAL.paper; x.fillRect(0, 0, 1080, 1350);
+  kicker(x, "Thursday PhotoStory · this week", 540, 96);
+  x.fillStyle = PAL.ink; x.font = `800 86px ${DISPLAY}`; let y = 190 + textAt(x, ep.title, 540, 190, 940, 92, "center");
+  x.font = `italic 400 34px ${BODY}`; x.fillStyle = PAL.muted; y += 8 + textAt(x, ep.tagline, 540, y + 8, 900, 46, "center");
+  polaroid(x, photos[ep.story[0].photo - 1].img, 540, y + 330, 760, 520, -2);
+  x.fillStyle = PAL.ink; rrect(x, 250, 1180, 580, 76, 38); x.fill();
+  x.font = `800 30px ${BODY}`; x.fillStyle = "#fff"; x.textAlign = "center"; x.fillText(`Swipe ➜ ${ep.story.length} chapters · quiz · song`, 540, 1229);
+  return c;
+}
+function cardChapter(ep, photos, i, b) {
+  const [c, x] = canvas(1080, 1350); x.fillStyle = PAL.paper; x.fillRect(0, 0, 1080, 1350);
+  const cap = ep.captions.find((k) => +k.photo === +b.photo), v = (ep.voices || []).find((k) => +k.photo === +b.photo);
+  kicker(x, `Chapter ${i} of ${ep.story.length}`, 540, 92);
+  x.font = `400 35px ${BODY}`; const body = wrap(x, b.text, 940);
+  x.font = `italic 400 30px ${BODY}`; const say = v ? wrap(x, `💬 ${v.speaker}: “${v.line}”`, 940) : [];
+  const bottomH = 70 + body.length * 48 + (say.length ? 18 + say.length * 40 : 0);
+  const top = 130, avail = 1350 - 70 - bottomH - top;
+  x.font = `600 34px ${BODY}`; const capH = wrap(x, `${cap?.caption || ""} ${cap?.emoji || ""}`, 860).length * 42 + 60;
+  polaroid(x, photos[b.photo - 1].img, 540, top + avail / 2, 900, Math.max(260, avail - capH - 40), i % 2 ? -1.6 : 1.4, `${cap?.caption || ""} ${cap?.emoji || ""}`);
+  let y = 1350 - 60 - bottomH + 50;
+  x.fillStyle = PAL.ink; x.font = `800 50px ${DISPLAY}`; x.textAlign = "left"; x.fillText(b.heading, 70, y);
+  x.font = `400 35px ${BODY}`; body.forEach((l, k) => x.fillText(l, 70, y + 56 + k * 48)); y += 56 + body.length * 48;
+  x.font = `italic 400 30px ${BODY}`; x.fillStyle = PAL.muted; say.forEach((l, k) => x.fillText(l, 70, y + 14 + k * 40));
+  footer(x, ep.title); return c;
+}
+function cardEnding(ep) {
+  const [c, x] = canvas(1080, 1350); x.fillStyle = PAL.paper; x.fillRect(0, 0, 1080, 1350);
+  kicker(x, "The end… for now", 540, 96);
+  x.fillStyle = PAL.ink; x.font = `400 44px ${BODY}`; let y = 190 + textAt(x, ep.story_ending, 70, 190, 940, 64);
+  x.fillStyle = PAL.muted; x.font = `italic 400 34px ${BODY}`; textAt(x, "🔮 " + ep.next_week_teaser, 70, y + 40, 940, 48);
+  x.fillStyle = "#ffe1cf"; rrect(x, 70, 900, 940, 300, 32); x.fill();
+  x.fillStyle = PAL.ink; x.font = `800 60px ${DISPLAY}`; x.textAlign = "left"; x.fillText("🧠 Quiz time!", 110, 990);
+  x.font = `400 36px ${BODY}`; textAt(x, `${ep.quiz.length} questions are waiting in the polls below. Kids vs. grown-ups: who remembers the most?`, 110, 1050, 860, 50);
+  footer(x, ep.title); return c;
+}
+function cardSong(ep) {
+  const s = ep.song, [c, x] = canvas(1080, 1350); x.fillStyle = PAL.dark; x.fillRect(0, 0, 1080, 1350);
+  kicker(x, "🎤 Sing-along", 540, 96, PAL.gold);
+  x.fillStyle = "#fff"; x.font = `800 66px ${DISPLAY}`; let y = 180 + textAt(x, s.title, 540, 180, 940, 70, "center");
+  x.fillStyle = "#cbbfe2"; x.font = `400 26px ${BODY}`; y += textAt(x, `${s.style} · ${s.tune_hint}`, 540, y + 4, 940, 36, "center") + 20;
+  x.font = `800 44px ${DISPLAY}`; const ch = wrap(x, s.chorus, 860); const boxH = 80 + ch.length * 56;
+  x.strokeStyle = PAL.gold; x.lineWidth = 4; rrect(x, 70, y, 940, boxH, 26); x.stroke();
+  kicker(x, "Chorus · everybody!", 540, y + 46, PAL.gold); x.fillStyle = PAL.gold; x.font = `800 44px ${DISPLAY}`; ch.forEach((l, k) => { x.textAlign = "center"; x.fillText(l, 540, y + 104 + k * 56); });
+  y += boxH + 60; x.font = `400 32px ${BODY}`;
+  const cols = [60, 555]; let col = 0, yy = [y, y];
+  s.verses.slice(0, 4).forEach((v, k) => { const cx = cols[col]; x.fillStyle = "#9d90b8"; x.font = `800 20px ${BODY}`; x.textAlign = "left"; x.fillText(`VERSE ${k + 1}`, cx, yy[col]); x.fillStyle = "#f1ecfa"; x.font = `400 28px ${BODY}`; const h = textAt(x, v, cx, yy[col] + 38, 470, 39); yy[col] += h + 64; col = 1 - col; });
+  footer(x, ep.title, "#7d7196"); return c;
+}
+function rows(n) { if (n <= 4) return [n]; const r = Math.ceil(n / 4), base = Math.floor(n / r); const out = Array(r).fill(base); let extra = n - base * r, mid = Math.floor(r / 2); for (let k = 0; extra > 0; k++, extra--) out[(mid + Math.ceil(k / 2) * (k % 2 ? -1 : 1) + r) % r]++; return out; }
+function cardCollage(ep, photos) {
+  const [c, x] = canvas(1080, 1350); x.fillStyle = PAL.paper; x.fillRect(0, 0, 1080, 1350);
+  const ordered = [...photos].sort((a, b) => (a.taken || 0) - (b.taken || 0));
+  const yrs = ordered.map((p) => p.taken && p.taken.getFullYear()).filter(Boolean), y0 = Math.min(...yrs), y1 = Math.max(...yrs);
+  const big = yrs.length >= 2 && y1 - y0 >= 2;
+  kicker(x, "Thursday PhotoStory · our memories", 540, 84);
+  x.fillStyle = PAL.ink; x.font = `800 84px ${DISPLAY}`; x.textAlign = "center"; x.fillText(big ? `${y1 - y0} Years of Us` : "Our Memories", 540, 180);
+  if (yrs.length) { x.fillStyle = PAL.muted; x.font = `800 28px ${BODY}`; x.letterSpacing = "6px"; x.fillText(y0 === y1 ? String(y0) : `${y0} — ${y1}`, 540, 232); x.letterSpacing = "0px"; }
+  const q = QUOTES.find((k) => k[0] === +ep.collage_quote_id);
+  let top = 262;
+  if (q) { x.fillStyle = PAL.ink; x.font = `italic 400 33px ${BODY}`; top += textAt(x, `“${q[1]}”`, 540, top + 30, 900, 44, "center"); x.fillStyle = PAL.accent; x.font = `800 22px ${BODY}`; x.fillText("— " + q[2].toUpperCase(), 540, top + 34); top += 60; }
+  x.font = `italic 400 36px ${BODY}`; const msg = wrap(x, "❤️ " + ep.collage_message, 920); const bottom = 1350 - 70 - msg.length * 48 - 20;
+  const rs = rows(ordered.length), gap = 24, availH = bottom - top - 64, rowH = Math.min(300, (availH - gap * (rs.length - 1)) / rs.length);
+  const tilts = [-3.2, 2.4, -1.4, 3, -2.6, 1.6, -0.8, 2.8, -3.4, 1.2, -2, 2.2];
+  let k = 0, y = top + (availH - (rowH * rs.length + gap * (rs.length - 1))) / 2 + 10;
+  for (const cols of rs) {
+    const w = Math.min((960 - gap * (cols - 1)) / cols, (rowH - 20) * 4 / 3 + 20), totalW = w * cols + gap * (cols - 1);
+    for (let j = 0; j < cols; j++, k++) {
+      const p = ordered[k], cx = (1080 - totalW) / 2 + j * (w + gap) + w / 2, cy = y + rowH / 2, ih = (w - 20) * 3 / 4;
+      x.save(); x.translate(cx, cy); x.rotate(tilts[k % tilts.length] * Math.PI / 180);
+      x.shadowColor = "rgba(38,26,61,.25)"; x.shadowBlur = 20; x.shadowOffsetY = 8; x.fillStyle = "#fff"; x.fillRect(-w / 2, -(ih + 20) / 2, w, ih + 20);
+      x.shadowColor = "transparent"; cover(x, p.img, -w / 2 + 10, -(ih + 20) / 2 + 10, w - 20, ih);
+      if (p.taken) { const yr = String(p.taken.getFullYear()), fs = Math.max(18, Math.round(w / 11)); x.font = `800 ${fs}px ${BODY}`; const tw = x.measureText(yr).width + 22;
+        x.rotate(-4 * Math.PI / 180); x.fillStyle = PAL.accent; rrect(x, -w / 2 - 8, (ih + 20) / 2 - fs - 4, tw, fs + 14, 9); x.fill(); x.fillStyle = "#fff"; x.textAlign = "left"; x.fillText(yr, -w / 2 + 3, (ih + 20) / 2 + 2); }
+      x.restore();
+    }
+    y += rowH + gap;
+  }
+  x.fillStyle = PAL.ink; x.font = `italic 400 36px ${BODY}`; msg.forEach((l, i) => { x.textAlign = "center"; x.fillText(l, 540, bottom + 30 + i * 48); });
+  footer(x, ep.title); return c;
+}
+
+/* ============================== voices ============================== */
+const Voice = {
+  session: null, cfg: null,
+  hash(s) { let h = 2166136261; for (const ch of s.trim().toLowerCase()) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return Math.abs(h); },
+  loadScript(src) { return new Promise((res, rej) => { if ([...document.scripts].some((s) => s.src === src)) return res(); const s = el("script", { src, async: true }); s.onload = res; s.onerror = () => rej(new Error("Couldn't load " + src)); document.head.append(s); }); },
+  async fetchCached(url, onProgress) {
+    let cache = null; try { cache = await caches.open("photostory-voice-v1"); const hit = await cache.match(url); if (hit) return hit.arrayBuffer(); } catch {}
+    const r = await fetch(url); if (!r.ok) throw new Error(`Voice download failed (${r.status})`);
+    const total = +r.headers.get("content-length") || 0, reader = r.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; onProgress?.(total ? got / total : 0); }
+    const blob = new Blob(parts); try { await cache?.put(url, new Response(blob)); } catch {}
+    return blob.arrayBuffer();
+  },
+  async load(onProgress) {
+    if (this.session) return;
+    await this.loadScript(LIBS.ort); await this.loadScript(LIBS.phonemizer + ".js");
+    window.ort.env.wasm.wasmPaths = LIBS.ortWasm; window.ort.env.wasm.numThreads = 1;
+    this.cfg = JSON.parse(new TextDecoder().decode(await this.fetchCached(LIBS.voice + ".json")));
+    const model = await this.fetchCached(LIBS.voice, onProgress);
+    this.session = await window.ort.InferenceSession.create(model);
+  },
+  phonemize(text) {
+    return new Promise(async (res, rej) => {
+      const t = setTimeout(() => rej(new Error("phonemizer timeout")), 30000);
+      try {
+        const mod = await window.createPiperPhonemize({ print: (l) => { clearTimeout(t); res(JSON.parse(l).phoneme_ids); }, printErr: () => {},
+          locateFile: (f) => (f.endsWith(".wasm") ? LIBS.phonemizer + ".wasm" : f.endsWith(".data") ? LIBS.phonemizer + ".data" : f) });
+        mod.callMain(["-l", this.cfg.espeak.voice, "--input", JSON.stringify([{ text: text.trim() }]), "--espeak_data", "/espeak-ng-data"]);
+      } catch (e) { clearTimeout(t); rej(e); }
+    });
+  },
+  async speak(text, speaker) {  // → {pcm: Float32Array, rate}
+    const ids = await this.phonemize(text), ort = window.ort, inf = this.cfg.inference;
+    const feeds = { input: new ort.Tensor("int64", BigInt64Array.from(ids.map(BigInt)), [1, ids.length]), input_lengths: new ort.Tensor("int64", BigInt64Array.from([BigInt(ids.length)]), [1]),
+      scales: new ort.Tensor("float32", Float32Array.from([inf.noise_scale, inf.length_scale, inf.noise_w]), [3]) };
+    if ((this.cfg.num_speakers || 1) > 1) feeds.sid = new ort.Tensor("int64", BigInt64Array.from([BigInt(SPEAKER_IDS[this.hash(speaker) % SPEAKER_IDS.length])]), [1]);
+    const out = await this.session.run(feeds);
+    return { pcm: out.output.data, rate: this.cfg.audio.sample_rate };
+  },
+};
+let audioCtx = null, playing = null;
+async function sayAloud(line, speaker, idx, btn) {
+  document.querySelectorAll(".say button.on").forEach((b) => b.classList.remove("on"));
+  try { playing?.stop?.(); } catch {} speechSynthesis?.cancel?.();
+  btn.classList.add("on"); const done = () => btn.classList.remove("on");
+  try {
+    if (S.clips?.[idx]) {
+      audioCtx = audioCtx || new AudioContext(); const { pcm, rate } = S.clips[idx];
+      const buf = audioCtx.createBuffer(1, pcm.length, rate); buf.copyToChannel(pcm, 0);
+      const src = audioCtx.createBufferSource(); src.buffer = buf; src.connect(audioCtx.destination); src.onended = done; src.start(); playing = src; return;
+    }
+    if (S.tts) { await S.tts.speak(line, { voice: ["buttery", "airy", "glassy", "rounded"][idx % 4] }); return done(); }
+    if ("speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(line), en = speechSynthesis.getVoices().filter((v) => v.lang?.startsWith("en"));
+      if (en.length) u.voice = en[idx % en.length]; u.pitch = [1, 1.35, 0.8, 1.2, 0.95, 1.5][idx % 6]; u.onend = done; u.onerror = done; speechSynthesis.speak(u); return;
+    }
+    done(); toast("This phone can't read aloud here");
+  } catch (e) { done(); if (e?.code !== "viewer_stopped") toast("Couldn't play that line"); }
+}
+
+/* ============================== video (WebCodecs + mp4-muxer) ============================== */
+const VW = 720, VH = 900, FPS = 24, TITLE_S = 4, END_S = 4, SONG_S = 7, COLL_S = 5, SPEECH_AT = 0.7, SPEECH_TAIL = 0.8;
+function chapterLayers(ep, photos, i, b) {
+  const p = photos[b.photo - 1].img, cap = ep.captions.find((k) => +k.photo === +b.photo), v = (ep.voices || []).find((k) => +k.photo === +b.photo);
+  const [bg, g] = canvas(VW, VH); g.fillStyle = "#000"; g.fillRect(0, 0, VW, VH);
+  if ("filter" in g) { g.filter = "blur(26px) brightness(0.55)"; cover(g, p, -40, -40, VW + 80, VH + 80, 0.5); g.filter = "none"; } else { cover(g, p, 0, 0, VW, VH, 0.5); g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect(0, 0, VW, VH); }
+  const [tx, t] = canvas(VW, VH);
+  const grad = t.createLinearGradient(0, VH - 360, 0, VH); grad.addColorStop(0, "rgba(20,12,34,0)"); grad.addColorStop(0.45, "rgba(20,12,34,.92)"); grad.addColorStop(1, "rgba(20,12,34,.96)"); t.fillStyle = grad; t.fillRect(0, VH - 360, VW, 360);
+  t.font = `600 25px ${BODY}`; const capL = wrap(t, `${cap?.caption || ""} ${cap?.emoji || ""}`, VW - 84);
+  let y = VH - 40 - capL.length * 33; t.fillStyle = "#fff"; t.textAlign = "left"; capL.forEach((l, k) => t.fillText(l, 42, y + k * 33));
+  t.font = `800 38px ${DISPLAY}`; t.fillText(b.heading, 42, y - 44); t.font = `800 17px ${BODY}`; t.fillStyle = "#ffb38a"; t.letterSpacing = "3px"; t.fillText(`CHAPTER ${i} OF ${ep.story.length}`, 42, y - 98); t.letterSpacing = "0px";
+  if (v) {
+    t.font = `italic 400 25px ${BODY}`; const ls = wrap(t, `“${v.line}”`, VW - 140), bh = 54 + ls.length * 32;
+    t.shadowColor = "rgba(0,0,0,.4)"; t.shadowBlur = 20; t.fillStyle = "#fff"; rrect(t, 40, 36, VW - 80, bh, 24); t.fill(); t.shadowColor = "transparent";
+    t.beginPath(); t.moveTo(100, 36 + bh); t.lineTo(130, 36 + bh); t.lineTo(104, 36 + bh + 22); t.fill();
+    t.fillStyle = PAL.accent; t.font = `800 15px ${BODY}`; t.letterSpacing = "2px"; t.fillText("🔊 " + v.speaker.toUpperCase(), 66, 72); t.letterSpacing = "0px";
+    t.fillStyle = PAL.ink; t.font = `italic 400 25px ${BODY}`; ls.forEach((l, k) => t.fillText(l, 66, 108 + k * 32));
+  }
+  return { bg, text: tx, photo: p };
+}
+function drawZoom(ctx, img, t, dur, z = 0.05) { const s = 1 + z * (t / dur), w = VW * s, h = VH * s; ctx.drawImage(img, (VW - w) / 2, (VH - h) / 2, w, h); }
+function fadeBlack(ctx, t, dur) { const a = t < 0.35 ? 1 - t / 0.35 : t > dur - 0.35 ? (t - (dur - 0.35)) / 0.35 : 0; if (a > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, a)})`; ctx.fillRect(0, 0, VW, VH); } }
+async function makeVideo(ep, photos, clips, onProgress, signal) {
+  if (typeof VideoEncoder === "undefined") throw new Error("This browser can't make videos (needs Chrome, Edge or Safari 16.4+). The cards and collage still work.");
+  await Voice.loadScript(LIBS.muxer);
+  const codec = (await VideoEncoder.isConfigSupported({ codec: "avc1.4d401f", width: VW, height: VH, bitrate: 1.2e6, framerate: FPS })).supported ? "avc1.4d401f" : "avc1.42001f";
+  const scenes = [{ kind: "card", img: S.cards[0], dur: TITLE_S }];
+  ep.story.forEach((b, k) => { const c = clips[k]; scenes.push({ kind: "ch", layers: chapterLayers(ep, photos, k + 1, b), dur: c ? Math.max(5, c.pcm.length / c.rate + SPEECH_AT + SPEECH_TAIL) : 5, clip: c }); });
+  scenes.push({ kind: "card", img: S.cards[S.cards.length - 3], dur: END_S }, { kind: "still", img: S.cards[S.cards.length - 2], dur: SONG_S }, { kind: "card", img: S.collage, dur: COLL_S, z: 0.03 });
+  const total = scenes.reduce((a, s) => a + s.dur, 0);
+  let acodec = null;  // AAC plays everywhere (incl. WhatsApp); Opus is the fallback where AAC can't be encoded
+  if (clips.some(Boolean) && typeof AudioEncoder !== "undefined")
+    for (const [c, m] of [["mp4a.40.2", "aac"], ["opus", "opus"]])
+      if ((await AudioEncoder.isConfigSupported({ codec: c, sampleRate: 48000, numberOfChannels: 1, bitrate: 96000 }).catch(() => ({}))).supported) { acodec = [c, m]; break; }
+  const hasAudio = !!acodec;
+  const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
+  const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: "avc", width: VW, height: VH }, ...(hasAudio ? { audio: { codec: acodec[1], numberOfChannels: 1, sampleRate: 48000 } } : {}), fastStart: "in-memory", firstTimestampBehavior: "offset" });
+  let err = null;
+  const venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: (e) => (err = e) });
+  venc.configure({ codec, width: VW, height: VH, bitrate: 1.2e6, framerate: FPS });
+  const [cv, ctx] = canvas(VW, VH);
+  let frame = 0, t0 = 0;
+  for (const sc of scenes) {
+    const n = Math.round(sc.dur * FPS);
+    for (let f = 0; f < n; f++, frame++) {
+      if (signal?.aborted) throw new DOMException("stopped", "AbortError"); if (err) throw err;
+      const t = f / FPS; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, VW, VH);
+      if (sc.kind === "ch") { ctx.drawImage(sc.layers.bg, 0, 0); const [w, h] = fit(sc.layers.photo, VW, VH - 300), s = 1 + 0.06 * t / sc.dur; ctx.drawImage(sc.layers.photo, (VW - w * s) / 2, (VH - 300 - h * s) / 2 + 40, w * s, h * s);
+        ctx.globalAlpha = Math.min(1, Math.max(0, (t - 0.5) / 0.6)); ctx.drawImage(sc.layers.text, 0, 0); ctx.globalAlpha = 1; }
+      else if (sc.kind === "still") ctx.drawImage(sc.img, 0, 0, VW, VH);
+      else drawZoom(ctx, sc.img, t, sc.dur, sc.z ?? 0.05);
+      fadeBlack(ctx, t, sc.dur);
+      const vf = new VideoFrame(cv, { timestamp: Math.round(frame * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      venc.encode(vf, { keyFrame: frame % (FPS * 2) === 0 }); vf.close();
+      if (venc.encodeQueueSize > 6) await new Promise((r) => venc.addEventListener("dequeue", r, { once: true }));
+      if (frame % 12 === 0) { onProgress?.(frame / (total * FPS)); await sleep(0); }
+    }
+    t0 += sc.dur;
+  }
+  await venc.flush();
+  if (hasAudio) {
+    const rate = clips.find(Boolean).rate, len = Math.ceil(total * rate), track = new Float32Array(len); let at = 0;
+    for (const sc of scenes) { if (sc.clip) track.set(sc.clip.pcm.subarray(0, Math.min(sc.clip.pcm.length, len - Math.round((at + SPEECH_AT) * rate))), Math.round((at + SPEECH_AT) * rate)); at += sc.dur; }
+    const off = new OfflineAudioContext(1, Math.ceil(total * 48000), 48000), buf = off.createBuffer(1, len, rate); buf.copyToChannel(track, 0);
+    const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(); const out = (await off.startRendering()).getChannelData(0);
+    let peak = 0; for (const s of out) peak = Math.max(peak, Math.abs(s)); const gain = peak > 0 ? 0.89 / peak : 1;
+    const aenc = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: (e) => (err = e) });
+    aenc.configure({ codec: acodec[0], sampleRate: 48000, numberOfChannels: 1, bitrate: 96000 });
+    for (let i = 0; i < out.length; i += 1024) { const part = out.slice(i, i + 1024).map((s) => s * gain);
+      const ad = new AudioData({ format: "f32", sampleRate: 48000, numberOfFrames: part.length, numberOfChannels: 1, timestamp: Math.round(i * 1e6 / 48000), data: part }); aenc.encode(ad); ad.close(); }
+    await aenc.flush(); if (err) throw err;
+  }
+  muxer.finalize(); onProgress?.(1);
+  return { blob: new Blob([muxer.target.buffer], { type: "video/mp4" }), seconds: total, talking: hasAudio, audioCodec: acodec?.[1] };
+}
+
+/* ============================== results UI ============================== */
+function status(text, kind = "run") {
+  const box = $("status"); const last = box.lastElementChild;
+  if (last && last.classList.contains("run")) last.className = "done";
+  const d = el("div", { className: kind, textContent: text }); box.append(d); return d;
+}
+function setTab(id) { for (const b of $("tabs").children) b.setAttribute("aria-selected", String(b.dataset.p === id)); for (const p of document.querySelectorAll(".panel")) p.hidden = p.id !== id; }
+function renderStory(ep, photos) {
+  const box = $("p-story"); box.textContent = "";
+  box.append(el("p", { textContent: ep.story_intro }));
+  ep.story.forEach((b, k) => {
+    const p = photos[b.photo - 1], cap = ep.captions.find((c) => +c.photo === +b.photo), v = (ep.voices || []).find((c) => +c.photo === +b.photo);
+    const art = el("article", { className: "beat" }, el("img", { src: p.url, alt: `Photo ${b.photo}` }), el("div", { className: "cap", textContent: `${cap?.caption || ""} ${cap?.emoji || ""}` }),
+      el("div", { className: "kick", textContent: `Chapter ${k + 1}` }), el("h3", { textContent: b.heading }), el("p", { textContent: b.text, style: "margin:0" }));
+    if (v) { const btn = el("button", { type: "button", textContent: "🔊", ariaLabel: `Hear ${v.speaker}` }); btn.onclick = () => sayAloud(v.line, v.speaker, k, btn);
+      art.append(el("div", { className: "say" }, btn, el("div", {}, el("small", { textContent: `${v.speaker} says` }), el("span", { textContent: `“${v.line}”` })))); }
+    box.append(art);
+  });
+  box.append(el("p", { textContent: ep.story_ending }), el("p", { className: "note", textContent: "🔮 " + ep.next_week_teaser }));
+}
+function renderQuiz(ep) {
+  const box = $("p-quiz"); box.textContent = ""; let right = 0, done = 0; const score = el("p", { className: "count" });
+  ep.quiz.forEach((q, i) => {
+    const card = el("div", { className: "q" }, el("p", { textContent: `${i + 1}. ${q.question}` })), opts = el("div", { className: "opts" });
+    q.options.forEach((o, j) => { const b = el("button", { type: "button", textContent: `${"ABCD"[j]}. ${o}` }); b.onclick = () => {
+      if (card.classList.contains("done")) return; card.classList.add("done"); [...opts.children].forEach((x, k) => k === q.answer && x.classList.add("right"));
+      if (j !== q.answer) b.classList.add("wrong"); else right++; if (++done === ep.quiz.length) score.textContent = `${right} / ${ep.quiz.length} ${right === ep.quiz.length ? "🏆 Perfect!" : right >= 3 ? "🎉 Great job!" : "😄 The photos are sneaky!"}`; };
+      opts.append(b); });
+    card.append(opts, el("div", { className: "why", textContent: q.explanation })); box.append(card);
+  });
+  box.append(score);
+}
+function renderSong(ep) {
+  const s = ep.song, box = $("p-song"); box.textContent = "";
+  const song = el("div", { className: "song" }, el("h3", { textContent: s.title }), el("p", { className: "note", style: "color:inherit;opacity:.75", textContent: `${s.style} · ${s.tune_hint}` }));
+  s.verses.forEach((v, i) => song.append(el("div", { className: "verse", textContent: `Verse ${i + 1}\n${v}` }), el("div", { className: "chorus", textContent: s.chorus })));
+  box.append(song);
+}
+function pollsText(ep) {
+  const L = ["THURSDAY PHOTOSTORY: WHATSAPP POLLS", 'In WhatsApp: + → Poll. Paste the question, add each option, turn off "Allow multiple answers".', ""];
+  ep.quiz.forEach((q, i) => { L.push(`POLL ${i + 1}`, `Question: ${q.question.slice(0, 255)}`, ...q.options.map((o) => `  Option: ${o.slice(0, 100)}`), ""); });
+  L.push("ANSWER REVEAL (send the next day 🙈)", "", ...ep.quiz.map((q, i) => `${i + 1}. ${q.options[q.answer]}: ${q.explanation}`));
+  return L.join("\n");
+}
+async function saveFile(blob, filename) {
+  if (S.downloads) { try { await S.downloads.save({ filename, data: blob }); return true; } catch (e) { if (e?.code !== "declined") toast("Couldn't save: " + (e?.message || e?.code)); return false; } }
+  const file = new File([blob], filename, { type: blob.type });
+  if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); return true; } catch (e) { if (e.name === "AbortError") return false; } }
+  const a = el("a", { href: URL.createObjectURL(blob), download: filename }); document.body.append(a); a.click(); a.remove(); return true;
+}
+async function shareMany(items) {
+  const files = items.map(([b, n]) => new File([b], n, { type: b.type }));
+  if (!S.downloads && navigator.canShare?.({ files })) { try { await navigator.share({ files, title: S.ep.title }); return; } catch (e) { if (e.name === "AbortError") return; } }
+  for (const [b, n] of items) { const ok = await saveFile(b, n); if (!ok) break; await sleep(400); }
+}
+
+/* ============================== main flow ============================== */
+async function make() {
+  const photos = chosen(); if (photos.length < 3) return;
+  S.abort = new AbortController(); const signal = S.abort.signal;
+  $("make").disabled = true; $("stop").hidden = false; $("status").textContent = ""; $("result").hidden = true;
+  const opts = { family: $("family").value.trim(), theme: $("theme").value, cast: $("cast").value.split("\n").map((s) => s.trim()).filter(Boolean) };
+  try {
+    await document.fonts.ready; await Promise.all([document.fonts.load(`800 40px ${DISPLAY}`), document.fonts.load(`400 20px ${BODY}`), document.fonts.load(`italic 400 20px ${BODY}`), document.fonts.load(`800 20px ${BODY}`)]).catch(() => {});
+    const w = writer();
+    status(w === "offline" ? "Writing with the built-in writer…" : "Claude is looking at your photos and writing (about a minute)…");
+    let ep = w === "claude" ? await writeWithClaude(photos, opts, signal) : w === "api" ? await writeWithApi(photos, opts, signal) : writeOffline(photos, opts);
+    const probs = check(ep, photos.length); if (probs.length) throw new Error("The story came back incomplete: " + probs.slice(0, 3).join("; ") + ". Tap Make to try again.");
+    shuffleQuiz(ep); S.ep = ep; S.clips = [];
+    status("Drawing the story cards and collage…");
+    S.cards = [cardTitle(ep, photos), ...ep.story.map((b, k) => cardChapter(ep, photos, k + 1, b)), cardEnding(ep), cardSong(ep)];
+    S.collage = cardCollage(ep, photos); S.cards.push(S.collage);
+    showResults(ep, photos);
+    if ($("wantVoice").checked && !S.env.claude) {
+      const st = status("Loading the talking-photo voice (first time only)…");
+      try { await Voice.load((f) => (st.textContent = `Loading the talking-photo voice… ${Math.round(f * 100)}%`));
+        for (let k = 0; k < ep.story.length; k++) { if (signal.aborted) break; const v = ep.voices.find((x) => +x.photo === +ep.story[k].photo); st.textContent = `Giving photo ${k + 1} of ${ep.story.length} a voice…`; S.clips[k] = v ? await Voice.speak(v.line, v.speaker) : null; }
+      } catch (e) { st.className = "err"; st.textContent = "Couldn't load the voice (" + (e.message || e) + "). The video will be silent; 🔊 buttons use the phone's voice."; S.clips = []; }
+    }
+    const vs = status("Making the video… 0%"); $("v-note").textContent = "Making the video…";
+    try {
+      const v = await makeVideo(ep, photos, S.clips, (f) => { vs.textContent = `Making the video… ${Math.round(f * 100)}%`; }, signal);
+      S.video = v; const url = URL.createObjectURL(v.blob); $("v-box").textContent = "";
+      const save = el("button", { className: "btn small", type: "button", textContent: navigator.canShare && !S.downloads ? "Share video" : "Save video" }); save.onclick = () => saveFile(v.blob, "photostory.mp4");
+      $("v-box").append(el("video", { src: url, controls: true, playsInline: true }), el("div", { className: "row", style: "margin-top:10px" }, save));
+      $("v-note").textContent = `${Math.round(v.seconds)} seconds, ${(v.blob.size / 1e6).toFixed(1)} MB${v.talking ? ", with talking photos" : ", silent"}.`;
+      vs.textContent = "Video ready";
+    } catch (e) { if (e.name === "AbortError") throw e; vs.className = "err"; vs.textContent = e.message; $("v-note").textContent = e.message; }
+    status("Done! Open the Share tab to send it to the family.", "done");
+  } catch (e) {
+    const msg = e?.name === "AbortError" || e?.code === "cancelled" ? "Stopped." : e?.code === "not_granted" ? "Claude access was declined for this page." : e?.code === "rate_limited" ? "Claude is busy or your usage limit was reached. Try again later." : e?.code === "invalid_json" ? "Claude's reply couldn't be read. Tap Make to try again." : e?.message || String(e);
+    status(msg, "err");
+  } finally { S.abort = null; $("stop").hidden = true; updateMake(); }
+}
+async function showResults(ep, photos) {
+  $("r-kick").textContent = `This week's PhotoStory · ${photos.length} photos`; $("r-title").textContent = ep.title; $("r-tag").textContent = ep.tagline;
+  renderStory(ep, photos); renderQuiz(ep); renderSong(ep);
+  const cb = await toBlob(S.collage); $("p-collage").textContent = "";
+  const saveC = el("button", { className: "btn small", type: "button", textContent: "Save collage" }); saveC.onclick = () => saveFile(cb, "photostory-collage.jpg");
+  $("p-collage").append(el("img", { src: URL.createObjectURL(cb), alt: "Family collage" }), el("div", { className: "row", style: "margin-top:12px" }, saveC));
+  $("polls").textContent = pollsText(ep);
+  const cards = $("cards"); cards.textContent = ""; S.cardBlobs = [];
+  for (let k = 0; k < S.cards.length; k++) {
+    const b = await toBlob(S.cards[k]), name = `${String(k).padStart(2, "0")}_photostory.jpg`; S.cardBlobs.push([b, name]);
+    const btn = el("button", { className: "btn small", type: "button", textContent: "Save" }); btn.onclick = () => saveFile(b, name);
+    cards.append(el("figure", {}, el("img", { src: URL.createObjectURL(b), alt: `Card ${k + 1}` }), el("figcaption", {}, el("span", { textContent: `${k + 1} / ${S.cards.length}` }), btn)));
+  }
+  $("result").hidden = false; setTab("p-story"); $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ============================== wiring ============================== */
+$("files").onchange = async (ev) => {
+  const files = [...ev.target.files].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|heic|webp)$/i.test(f.name)).slice(0, 40);
+  $("count").textContent = `Reading ${files.length} photos…`; let bad = 0;
+  for (const f of files) { try { S.photos.push(await loadPhoto(f)); } catch { bad++; } }
+  if (bad) toast(`${bad} photo${bad > 1 ? "s" : ""} couldn't be opened on this phone`);
+  if (S.photos.length > 40) S.photos = S.photos.slice(-40);
+  if (!chosen().length || chosen().length < Math.min(10, S.photos.length)) repick(); else renderThumbs();
+  ev.target.value = "";
+};
+$("repick").onclick = repick;
+for (const r of document.querySelectorAll("input[name=writer]")) r.onchange = syncWriter;
+$("apikey").oninput = () => { store.set("ps.key", $("apikey").value.trim() || null); updateMake(); };
+$("forget").onclick = () => { $("apikey").value = ""; store.set("ps.key", null); updateMake(); toast("Key removed from this phone"); };
+$("make").onclick = make;
+$("stop").onclick = () => S.abort?.abort();
+$("tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) setTab(b.dataset.p); };
+$("saveAll").onclick = () => shareMany(S.cardBlobs || []);
+$("copyPolls").onclick = async () => { try { await navigator.clipboard.writeText($("polls").textContent); toast("Polls copied"); } catch { toast("Select the text and copy it"); } };
+renderReel(); detectEnv();
+</script>
+</body>
+</html>

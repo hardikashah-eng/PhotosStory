@@ -89,3 +89,27 @@ def test_html_is_escaped(cfg):
     ep.title = "<script>alert(1)</script>"
     r = render_episode(ep, photos, date(2026, 11, 12), "Fam")
     assert "<script>alert(1)" not in r.page_html and "<script>alert(1)" not in r.email_html
+
+
+def test_render_command_from_episode_json(tmp_path, photo_dir):
+    from photostory.cli import main
+    from photostory.config import Config
+    from photostory.generator import fake_episode
+
+    from .conftest import make_photos
+
+    ep = fake_episode(make_photos(3), Config())
+    (tmp_path / "ep.json").write_text(ep.model_dump_json())
+    files = sorted(str(p) for p in photo_dir.glob("IMG_*.jpg"))[:3]
+    rc = main(["render", "--episode", str(tmp_path / "ep.json"), "--photos", *files, "--dates", "2009-10-18,2012-05-27,2026-01-10",
+               "--out", str(tmp_path / "out"), "--no-pack"])
+    assert rc == 0 and (tmp_path / "out" / "photostory.html").exists()
+    rc = main(["render", "--episode", str(tmp_path / "ep.json"), "--photos", *files[:2], "--out", str(tmp_path / "o2"), "--no-pack"])
+    assert rc == 1  # 3-photo episode with only 2 photos is rejected
+
+
+def test_quotes_and_schema_commands(capsys):
+    from photostory.cli import main
+
+    assert main(["quotes"]) == 0 and "Emerson" in capsys.readouterr().out
+    assert main(["schema"]) == 0 and '"voices"' in capsys.readouterr().out

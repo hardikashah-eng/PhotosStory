@@ -19,6 +19,42 @@ OneDrive / folder ──► pick 10 (varied months, no repeats for 6 months)
                   ──► remember what was used (hashed ids only)
 ```
 
+## 📲 Use it on a phone, no install
+
+There are three ways to use PhotoStory without touching this repo:
+
+| | How people use it | Writes the story | Talking-photo video | Needs |
+|---|---|---|---|---|
+| **Inside Claude** | Open the shared PhotoStory page in the Claude app | Claude, on *their* Claude plan | Silent video; 🔊 buttons read lines aloud | A Claude account |
+| **Standalone web app** | Open the GitHub Pages link → *Add to Home Screen* | Claude with their API key, **or** the free built-in writer | ✅ Spoken, made on the phone | Nothing (API key optional) |
+| **Claude skill** | Say "make this week's PhotoStory" or schedule it for Thursdays | Claude in chat | ✅ Spoken (Piper) | A Claude account |
+
+**The web app (`webapp/index.html`) is one self-contained page.** Everything happens on the phone:
+- **Photos:** pick 3–40 from the gallery. It picks 10 from different years and reads the dates from the photos.
+- **Writing:** Claude writes the story, or the built-in template writer does, which is free, works offline, and uses your dates and one-word tags.
+- **Cards and collage:** drawn on canvas.
+- **Voice:** [Piper](https://github.com/rhasspy/piper) neural TTS runs in the browser through onnxruntime-web. The 75 MB voice downloads once and is then cached.
+- **Video:** encoded with WebCodecs and mp4-muxer.
+- **Sharing:** the share sheet sends cards and video straight to WhatsApp.
+- **Privacy:** photos never leave the phone, except to Claude when Claude is the writer.
+
+Deploy it for free: the `Deploy web app` workflow publishes `webapp/` to GitHub Pages on every push to `main`. One-time setup: **Settings → Pages → Source: GitHub Actions**. To try it locally: `python -m http.server -d webapp`. After editing `photostory/data/quotes.yaml`, run `python webapp/sync_quotes.py`.
+
+Browser support:
+- **Video:** needs WebCodecs (Chrome/Edge on Android and desktop, Safari 16.4+).
+- **Audio track:** AAC where the browser can encode it, otherwise Opus.
+- **Voice:** older phones can untick talking photos and use the 🔊 buttons, which use the phone's own voice.
+
+**For the Claude skill**, Claude writes the episode JSON in chat, then renders it with:
+
+```bash
+pip install "photostory[share,voice] @ git+https://github.com/hardikashah-eng/PhotosStory"
+python -m playwright install chromium
+photostory schema            # the episode JSON shape
+photostory quotes            # the curated collage quotes
+photostory render --episode episode.json --photos 01.jpg 02.jpg … --out out/
+```
+
 ## 📱 WhatsApp pack
 
 An `.html` file arrives in WhatsApp as a "document", so every episode also comes as formats that play right in the chat. They're attached to the weekly email and saved under `out/<date>/whatsapp/`:
